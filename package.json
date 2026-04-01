@@ -1,0 +1,22 @@
+{
+  "name": "byuckchon-frontend-cli",
+  "version": "1.0.0",
+  "description": "byuckchon frontend CLI for creating React and Next.js projects",
+  "type": "module",
+  "bin": {
+    "byuckchon-frontend-cli": "./bin/index.js"
+  },
+  "scripts": {
+    "start": "node bin/index.js"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "inquirer": "^9.3.0"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md"
+  ],
+  "license": "MIT"
+}
