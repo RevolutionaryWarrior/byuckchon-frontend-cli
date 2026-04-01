@@ -1,6 +1,6 @@
 {
   "name": "byuckchon-frontend-cli",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "byuckchon frontend CLI for creating React and Next.js projects",
   "type": "module",
   "bin": {
@@ -18,5 +18,25 @@
     "src",
     "README.md"
   ],
-  "license": "MIT"
+  "keywords": [
+    "byuckchon-frontend",
+    "byuckchon",
+    "frontend",
+    "cli",
+    "react",
+    "next"
+  ],
+  "author": "Byuckchon Frontend Team",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/RevolutionaryWarrior/byuckchon-frontend-cli/issues"
+  },
+  "homepage": "https://github.com/RevolutionaryWarrior/byuckchon-frontend-cli#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RevolutionaryWarrior/byuckchon-frontend-cli.git"
+  }
 }
