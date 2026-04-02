@@ -1,6 +1,6 @@
 {
   "name": "byuckchon-frontend-cli",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "byuckchon frontend CLI for creating React and Next.js projects",
   "type": "module",
   "bin": {
