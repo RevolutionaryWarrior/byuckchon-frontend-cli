@@ -10,7 +10,7 @@ export async function createPackageJson(rootDir, config) {
     name: config.projectName,
     version: '0.0.1',
     private: true,
-    ...(isReact ? { type: 'module' } : {}),
+    type: 'module',
     scripts: isReact
       ? {
           dev: 'vite',
