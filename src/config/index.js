@@ -78,6 +78,9 @@ async function writeJson(file, data) {
 
 function deepMerge(base, patch) {
   if (patch == null) return base;
+  // 한쪽이 null/원시값이거나, 한쪽만 배열이면 patch 가 우선.
+  // 특히 base 가 null 인데 patch 가 객체일 때 `k in base` 가 TypeError 던지는 걸 방지.
+  if (base == null) return patch;
   if (typeof base !== 'object' || typeof patch !== 'object') return patch;
   if (Array.isArray(base) || Array.isArray(patch)) return patch;
   const out = { ...base };

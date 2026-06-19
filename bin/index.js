@@ -27,7 +27,7 @@ const program = new Command();
 program
   .name('bc')
   .description('Byuckchon Frontend Workbench — 프로젝트 스타터 + AI 어시스턴트')
-  .version('1.4.0');
+  .version('1.4.1');
 
 program
   .command('init')
