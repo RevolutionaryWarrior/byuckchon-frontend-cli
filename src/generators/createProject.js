@@ -4,6 +4,7 @@ import { exec as execCallback } from 'child_process';
 import { promisify } from 'util';
 
 import { createBaseFiles } from './createBaseFiles.js';
+import { createBcConfig } from './createBcConfig.js';
 import { createFolders } from './createFolders.js';
 import { createPackageJson } from './createPackageJson.js';
 import { createReadme } from './createReadme.js';
@@ -24,6 +25,7 @@ export async function createProject(config) {
   await createPackageJson(rootDir, config);
   await createBaseFiles(rootDir, config);
   await createReadme(rootDir, config);
+  await createBcConfig(rootDir, config);
 
   // 최신 버전(latest 포함) 의존성을 실제로 설치해 lockfile까지 생성
   await exec('npm install', { cwd: rootDir });

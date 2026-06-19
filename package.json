@@ -1,17 +1,35 @@
 {
   "name": "byuckchon-frontend-cli",
-  "version": "1.1.0",
-  "description": "byuckchon frontend CLI for creating React and Next.js projects",
+  "version": "1.4.0",
+  "description": "Byuckchon Frontend Workbench — project starter + AI chat + codebase RAG + OpenAPI codegen",
   "type": "module",
+  "engines": {
+    "node": ">=18.18"
+  },
   "bin": {
-    "byuckchon-frontend-cli": "./bin/index.js"
+    "byuckchon-frontend-cli": "./bin/index.js",
+    "bc": "./bin/index.js"
   },
   "scripts": {
-    "start": "node bin/index.js"
+    "start": "node bin/index.js",
+    "chat": "node bin/index.js chat",
+    "init": "node bin/index.js init",
+    "config": "node bin/index.js config show"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.85",
+    "@ai-sdk/openai": "^3.0.73",
+    "ai": "^6.0.208",
     "chalk": "^5.3.0",
-    "inquirer": "^9.3.0"
+    "commander": "^15.0.0",
+    "dotenv": "^17.4.2",
+    "fast-glob": "^3.3.3",
+    "ink": "^7.1.0",
+    "ink-spinner": "^5.0.0",
+    "ink-text-input": "^6.0.0",
+    "inquirer": "^9.3.0",
+    "openapi-typescript": "^7.13.0",
+    "react": "^19.2.7"
   },
   "files": [
     "bin",
@@ -23,8 +41,16 @@
     "byuckchon",
     "frontend",
     "cli",
+    "ai",
+    "claude",
+    "anthropic",
+    "openai",
+    "rag",
+    "ink",
     "react",
-    "next"
+    "next",
+    "expo",
+    "electron"
   ],
   "author": "Byuckchon Frontend Team",
   "license": "MIT",

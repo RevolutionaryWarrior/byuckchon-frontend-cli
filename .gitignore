@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+
+# Build artifacts
+dist/
+build/
+*.tsbuildinfo
+
+# npm pack output
+*.tgz
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Env / secrets — bc CLI 가 자동 로드하므로 절대 커밋 금지
+.env
+.env.*
+!.env.example
+
+# bc CLI 글로벌 설정 (혹시라도 repo 안에 떨어졌다면)
+.bc/
+
+# Coverage
+coverage/
+.nyc_output/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Misc
+.cache/
+.tmp/
