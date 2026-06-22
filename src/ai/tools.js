@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 import fg from 'fast-glob';
-import { tool } from 'ai';
+import { tool, jsonSchema } from 'ai';
 
 import { searchIndex } from '../indexer/search.js';
 import {
@@ -260,31 +260,31 @@ export function buildTools({ projectRoot, effective, onEvent = () => {} }) {
     read_file: tool({
       description:
         '프로젝트 안의 파일이나 디렉터리 내용을 읽는다. 코드 짜기 전에 반드시 기존 코드 컨벤션을 먼저 읽어볼 것.',
-      inputSchema: {
+      inputSchema: jsonSchema({
         type: 'object',
         properties: { path: { type: 'string', description: '프로젝트 루트 기준 상대 경로' } },
         required: ['path'],
         additionalProperties: false,
-      },
+      }),
       execute: readFile,
     }),
     list_files: tool({
       description:
         '글롭 패턴으로 파일을 나열. 폴더 구조 파악, 비슷한 모듈 위치 찾기에 사용. 예: "src/api/**/*.ts"',
-      inputSchema: {
+      inputSchema: jsonSchema({
         type: 'object',
         properties: {
           pattern: { type: 'string', default: '**/*' },
           limit: { type: 'number', default: 100 },
         },
         additionalProperties: false,
-      },
+      }),
       execute: listFiles,
     }),
     search_code: tool({
       description:
         '코드베이스를 의미 기반(임베딩)으로 검색. "fetch 래퍼 패턴", "useQuery hook 컨벤션" 같이 자연어로 찾기. 인덱스가 없으면 에러.',
-      inputSchema: {
+      inputSchema: jsonSchema({
         type: 'object',
         properties: {
           query: { type: 'string' },
@@ -292,13 +292,13 @@ export function buildTools({ projectRoot, effective, onEvent = () => {} }) {
         },
         required: ['query'],
         additionalProperties: false,
-      },
+      }),
       execute: searchCode,
     }),
     write_file: tool({
       description:
         '새 파일을 만들거나 기존 파일을 통째로 덮어쓴다. 새 파일을 만들기 전에 반드시 1) 비슷한 기존 파일을 read_file 로 보고 2) 같은 폴더 컨벤션(barrel 파일, 네이밍, import 순서) 을 따른다.',
-      inputSchema: {
+      inputSchema: jsonSchema({
         type: 'object',
         properties: {
           path: { type: 'string' },
@@ -306,13 +306,13 @@ export function buildTools({ projectRoot, effective, onEvent = () => {} }) {
         },
         required: ['path', 'content'],
         additionalProperties: false,
-      },
+      }),
       execute: writeFile,
     }),
     edit_file: tool({
       description:
         '기존 파일에서 old_string 을 찾아 new_string 으로 정확히 1번 치환. old_string 은 파일 안에서 유일해지도록 충분한 컨텍스트(앞뒤 줄) 를 포함시킬 것. 여러 번 등장하면 에러로 거부.',
-      inputSchema: {
+      inputSchema: jsonSchema({
         type: 'object',
         properties: {
           path: { type: 'string' },
@@ -321,7 +321,7 @@ export function buildTools({ projectRoot, effective, onEvent = () => {} }) {
         },
         required: ['path', 'old_string', 'new_string'],
         additionalProperties: false,
-      },
+      }),
       execute: editFile,
     }),
     fetch_figma: tool({
@@ -330,7 +330,7 @@ export function buildTools({ projectRoot, effective, onEvent = () => {} }) {
         '간소화된 디자인 정보(autoLayout, fills, text, size, children 등) 를 반환. ' +
         '없으면 파일 페이지 목록만. 컴포넌트/페이지 생성 요청을 받으면 이 툴을 먼저 호출해서 ' +
         '디자인 의도를 학습한 뒤 코드를 짠다.',
-      inputSchema: {
+      inputSchema: jsonSchema({
         type: 'object',
         properties: {
           url: { type: 'string', description: 'Figma share/copy link' },
@@ -338,14 +338,14 @@ export function buildTools({ projectRoot, effective, onEvent = () => {} }) {
         },
         required: ['url'],
         additionalProperties: false,
-      },
+      }),
       execute: fetchFigma,
     }),
     fetch_figma_image: tool({
       description:
         'Figma 프레임을 PNG/JPG/SVG 이미지로 export. savePath 를 주면 프로젝트 폴더 안에 파일로 저장 ' +
         '(스토리북 배경, public asset 등). 안 주면 임시 URL 만 반환.',
-      inputSchema: {
+      inputSchema: jsonSchema({
         type: 'object',
         properties: {
           url: { type: 'string' },
@@ -355,19 +355,19 @@ export function buildTools({ projectRoot, effective, onEvent = () => {} }) {
         },
         required: ['url'],
         additionalProperties: false,
-      },
+      }),
       execute: fetchFigmaImage,
     }),
     fetch_figma_styles: tool({
       description:
         'Figma 파일의 로컬 스타일(컬러/타이포/이펙트 토큰) 목록을 가져온다. 디자인 토큰 추출 / ' +
         'Tailwind 테마 설정 / theme.ts 생성 시 사용.',
-      inputSchema: {
+      inputSchema: jsonSchema({
         type: 'object',
         properties: { url: { type: 'string' } },
         required: ['url'],
         additionalProperties: false,
-      },
+      }),
       execute: fetchFigmaStylesTool,
     }),
   };

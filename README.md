@@ -264,11 +264,19 @@ TTY 안에서 자동으로 ink 모드로 뜨고, 파이프/CI 같은 비-TTY 환
 이미지 첨부는 png / jpg / jpeg / gif / webp 만 지원하며,
 Claude / GPT 비전 모델에 멀티파트 메시지로 전달됩니다.
 
-**이미지 첨부 3가지 방법:**
+**이미지 첨부 3가지 방법:** (ink·plain 모드 모두 지원 — v1.6.1+)
 1. `/image ./shot.png` — 경로 직접
 2. **드래그 & 드롭** — `/image ` 까지 입력 후, Finder 에서 파일을 터미널 위로 끌어다 놓으면 절대경로가 자동 입력됩니다. Enter.
-3. `/paste` — **macOS 한정**, 클립보드의 이미지(예: `Cmd+Shift+4` 스크린샷)를 바로 첨부.
+3. `/paste` — **macOS 한정**, 클립보드의 이미지(예: `Cmd+Shift+4` 스크린샷 또는 Finder 에서 `Cmd+C` 한 이미지)를 바로 첨부.
    - 사전에 `brew install pngpaste` 한 번 필요.
+
+> **터미널에서 `Cmd+V` 로 직접 붙이기는 왜 안 되나?** 터미널 앱은 클립보드의 "이미지 바이트" 를
+> 앱에 전달하지 않고 텍스트만 줍니다 (OS/터미널 공통 제약). 그래서 클립보드 이미지를 붙이려면
+> `/paste` 가 `pngpaste` 로 클립보드를 직접 읽어 첨부합니다 — `Cmd+C` → 입력창에 `/paste` → Enter.
+
+> **썸네일 미리보기:** iTerm2 · kitty · WezTerm 에서는 plain 모드에서 첨부 직후 작은 썸네일이
+> 인라인으로 표시됩니다. 그 외 터미널은 파일명 + 용량만 표시됩니다 (터미널이 이미지 렌더링을
+> 지원하지 않기 때문).
 
 ### 한글 입력이 자꾸 씹힐 때 (v1.6+)
 
@@ -342,6 +350,7 @@ bc config set-ui ink                        # 풀 TUI 복귀
 - [x] v1.4.1 — `deepMerge(null, obj)` TypeError 수정 (`bc adopt` 한 프로젝트에서 모든 명령이 터지던 버그)
 - [x] v1.5.0 — 에이전트 모드 (read/list/search/write/edit 툴) — AI 가 실제 파일을 만든다
 - [x] v1.6.0 — Figma 툴 (fetch_figma / image / styles), 한글 IME 안정 plain 모드 (`bc config set-ui plain`)
+- [x] v1.6.1 — 툴 스키마 `jsonSchema()` 래핑 (`schema is not a function` 수정), plain 모드 이미지 첨부(`/image`·`/paste`) + iTerm2/kitty 인라인 썸네일
 - [ ] v1.7.0 — write/edit 승인 게이트 (`y/n/v/q`), diff 미리보기
 - [ ] Phase 3c-2: Figma 실 fetch (URL → 노드 트리 → 컴포넌트 인텐트)
 - [ ] Phase 4: `bc gen component/page` (AST 편집 + 검증 루프), `/apply` diff 미리보기

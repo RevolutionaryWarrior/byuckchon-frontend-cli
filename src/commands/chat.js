@@ -11,6 +11,9 @@ import { TokenMeter } from '../ai/tokenMeter.js';
 import { buildSystemPrompt } from '../ai/systemPrompt.js';
 import { findModel } from '../ai/models.js';
 import { buildTools } from '../ai/tools.js';
+import { toSdkMessages, isImagePath, imagePartFromFile } from '../ai/messageContent.js';
+import { pasteClipboardImage, cleanDroppedPath } from '../ai/clipboard.js';
+import { printInlineThumbnail } from '../ai/imagePreview.js';
 import {
   createSession,
   saveSession,
@@ -254,7 +257,46 @@ async function runReadlineFallback({ cfg, resolved, system, session, openapiInfo
   if (session?.messages?.length) {
     console.log(chalk.dim(`  세션: ${session.id} (${session.messages.length} turns 이어가기)`));
   }
-  console.log(chalk.dim('  /exit 또는 Ctrl+D 로 종료\n'));
+  console.log(
+    chalk.dim('  /image <경로> · /paste(클립보드 이미지) · /clear-attach · /exit\n'),
+  );
+
+  // 다음 메시지에 함께 보낼 이미지 첨부 목록.
+  let pendingAttachments = [];
+
+  const printAttachments = () => {
+    if (!pendingAttachments.length) {
+      console.log(chalk.dim('  첨부 없음.'));
+      return;
+    }
+    console.log(chalk.dim('  현재 첨부:'));
+    for (const a of pendingAttachments) {
+      console.log(chalk.dim(`    - ${path.basename(a.path)} (${a.sizeKb}KB)`));
+    }
+  };
+
+  const addImage = async (rawPath) => {
+    const p = cleanDroppedPath(rawPath);
+    if (!p) {
+      console.log(chalk.red('  사용법: /image <파일 경로>'));
+      return;
+    }
+    if (!isImagePath(p)) {
+      console.log(chalk.red('  지원 확장자: png, jpg, jpeg, gif, webp'));
+      return;
+    }
+    try {
+      const { default: fsp } = await import('node:fs/promises');
+      const stat = await fsp.stat(path.resolve(p));
+      const sizeKb = Math.max(1, Math.round(stat.size / 1024));
+      pendingAttachments.push({ kind: 'image', path: path.resolve(p), sizeKb });
+      console.log(chalk.green(`  📎 첨부: ${path.basename(p)} (${sizeKb}KB)`));
+      // iTerm2 / kitty / WezTerm 이면 작은 썸네일을 바로 보여준다.
+      await printInlineThumbnail(path.resolve(p), { heightCells: 6 });
+    } catch (e) {
+      console.log(chalk.red('  이미지 읽기 실패: ' + (e?.message ?? e)));
+    }
+  };
 
   const rl = readline.createInterface({
     input: process.stdin,
@@ -284,7 +326,50 @@ async function runReadlineFallback({ cfg, resolved, system, session, openapiInfo
       rl.close();
       return;
     }
-    history.push({ role: 'user', content: line });
+    // 이미지 첨부 관련 슬래시 명령 — plain 모드에서도 지원.
+    if (line.startsWith('/image')) {
+      await addImage(line.slice('/image'.length).trim());
+      ask();
+      continue;
+    }
+    if (line === '/paste') {
+      try {
+        const file = await pasteClipboardImage();
+        await addImage(file);
+      } catch (e) {
+        console.log(chalk.red('  ' + (e?.message ?? e)));
+      }
+      ask();
+      continue;
+    }
+    if (line === '/attachments') {
+      printAttachments();
+      ask();
+      continue;
+    }
+    if (line === '/clear-attach') {
+      pendingAttachments = [];
+      console.log(chalk.dim('  첨부를 비웠습니다.'));
+      ask();
+      continue;
+    }
+
+    // 일반 메시지 — 첨부가 있으면 멀티모달 content 로 구성.
+    if (pendingAttachments.length) {
+      const parts = [{ type: 'text', text: line }];
+      try {
+        for (const att of pendingAttachments) {
+          parts.push(await imagePartFromFile(att.path));
+        }
+        history.push({ role: 'user', content: parts });
+      } catch (e) {
+        console.log(chalk.red('  첨부 처리 실패: ' + (e?.message ?? e)));
+        history.push({ role: 'user', content: line });
+      }
+      pendingAttachments = [];
+    } else {
+      history.push({ role: 'user', content: line });
+    }
     rl.pause();
 
     const projectRoot = cfg.paths.projectFile
@@ -340,7 +425,14 @@ async function runReadlineFallback({ cfg, resolved, system, session, openapiInfo
 
     // 세션 자동 저장 — readline 모드에서도 끊김 대비.
     if (session) {
-      session.messages = history.map((h) => ({ role: h.role, text: h.content }));
+      session.messages = history.map((h) => {
+        // 멀티모달(content 가 배열) 인 경우 text 파트만 추출해 저장 (이미지 바이트는 세션에 안 남김).
+        if (Array.isArray(h.content)) {
+          const textPart = h.content.find((p) => p.type === 'text');
+          return { role: h.role, text: textPart?.text ?? '[이미지 첨부]' };
+        }
+        return { role: h.role, text: h.content };
+      });
       try {
         await saveSession(session);
       } catch {
