@@ -5,16 +5,44 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Box, Text, useApp, useInput, useStdout } from 'ink';
 import TextInput from 'ink-text-input';
 import Spinner from 'ink-spinner';
-import { streamText } from 'ai';
+import { streamText, stepCountIs } from 'ai';
 
 import { resolveModel } from '../ai/provider.js';
 import { TokenMeter } from '../ai/tokenMeter.js';
 import { findModel, MODEL_CATALOG } from '../ai/models.js';
 import { toSdkMessages, isImagePath } from '../ai/messageContent.js';
+import { buildTools } from '../ai/tools.js';
 import { searchIndex } from '../indexer/search.js';
 import { loadIndex, buildIndex } from '../indexer/store.js';
 
 const h = React.createElement;
+
+/** 툴 호출의 input 을 채팅 한 줄에 보여줄 수 있게 압축. content 같은 대형 필드는 길이만 표시. */
+function summarizeToolInput(name, input) {
+  if (!input || typeof input !== 'object') return '';
+  switch (name) {
+    case 'read_file':
+    case 'write_file':
+    case 'edit_file':
+      return JSON.stringify(input.path ?? '');
+    case 'list_files':
+      return JSON.stringify(input.pattern ?? '**/*');
+    case 'search_code':
+      return JSON.stringify(input.query ?? '');
+    default:
+      // 일반 케이스 — 너무 긴 필드는 잘라낸다.
+      try {
+        const small = {};
+        for (const [k, v] of Object.entries(input)) {
+          if (typeof v === 'string' && v.length > 60) small[k] = v.slice(0, 60) + '…';
+          else small[k] = v;
+        }
+        return JSON.stringify(small);
+      } catch {
+        return '';
+      }
+  }
+}
 
 /**
  * macOS 클립보드의 이미지(예: 스크린샷)를 임시 파일로 떨궈 절대경로를 돌려준다.
@@ -673,10 +701,45 @@ export function ChatApp({ initialConfig, initialResolved, session, onSessionUpda
 
     try {
       const sdkMessages = await toSdkMessages(newMessages);
+
+      // 프로젝트 루트 결정: bc.config.json 이 있는 디렉터리, 없으면 cwd.
+      const projectRoot = cfg.paths.projectFile
+        ? path.dirname(cfg.paths.projectFile)
+        : process.cwd();
+
+      // 툴 실행 이벤트는 채팅에 시스템 메시지로 표시 (사용자가 무엇이 일어났는지 보게).
+      const onToolEvent = (ev) => {
+        const labels = {
+          write_created: '🆕 생성',
+          write_overwritten: '✏️  덮어씀',
+          write_skipped: '⏭  스킵',
+          edit: '✏️  편집',
+        };
+        const label = labels[ev.kind] ?? ev.kind;
+        const detail =
+          ev.lines != null
+            ? `(${ev.lines} lines)`
+            : ev.added != null
+              ? `(+${ev.added} / -${ev.removed} lines)`
+              : '';
+        setMessages((m) => [
+          ...m,
+          { role: 'system-info', text: `${label} ${ev.path} ${detail}`.trim() },
+        ]);
+      };
+
+      const tools = buildTools({
+        projectRoot,
+        effective: cfg.effective,
+        onEvent: onToolEvent,
+      });
+
       const result = streamText({
         model: resolved.model,
         system: systemWithContext,
         messages: sdkMessages,
+        tools,
+        stopWhen: stepCountIs(12),
         onError: ({ error }) => {
           replaceWithError('AI 호출 에러: ' + (error?.message ?? String(error)));
         },
@@ -685,13 +748,36 @@ export function ChatApp({ initialConfig, initialResolved, session, onSessionUpda
       setState('streaming');
       let acc = '';
       try {
-        for await (const delta of result.textStream) {
-          acc += delta;
-          setMessages((m) => {
-            const next = [...m];
-            next[assistantIdx] = { role: 'assistant', text: acc, streaming: true };
-            return next;
-          });
+        // fullStream 으로 tool-call / tool-result / text-delta 다 다룸.
+        for await (const part of result.fullStream) {
+          if (part.type === 'text-delta') {
+            acc += part.text;
+            setMessages((m) => {
+              const next = [...m];
+              next[assistantIdx] = { role: 'assistant', text: acc, streaming: true };
+              return next;
+            });
+          } else if (part.type === 'tool-call') {
+            // 모델이 툴을 호출하는 순간 — 한 줄로 표시.
+            const argSummary = summarizeToolInput(part.toolName, part.input);
+            setMessages((m) => [
+              ...m,
+              {
+                role: 'system-info',
+                text: `🔧 ${part.toolName}(${argSummary})`,
+              },
+            ]);
+          } else if (part.type === 'tool-error') {
+            setMessages((m) => [
+              ...m,
+              {
+                role: 'system-error',
+                text: `툴 에러 (${part.toolName ?? '?'}): ${part.error?.message ?? part.error}`,
+              },
+            ]);
+          } else if (part.type === 'error') {
+            replaceWithError('스트림 에러: ' + (part.error?.message ?? String(part.error)));
+          }
         }
       } catch (streamErr) {
         replaceWithError('스트리밍 중단: ' + (streamErr?.message ?? String(streamErr)));
@@ -700,14 +786,26 @@ export function ChatApp({ initialConfig, initialResolved, session, onSessionUpda
       // 에러가 안 났을 때만 final assistant 로 마무리.
       if (!errorText) {
         if (acc.length === 0) {
-          // 응답이 아예 비었지만 onError 도 안 떴다 → finishReason 으로 추적.
+          // 텍스트가 없어도 툴만 호출하고 끝났을 수 있음 — 그건 정상.
+          // finishReason 으로 진짜 비정상인지 분기.
           let reason = 'unknown';
           try {
             reason = await result.finishReason;
           } catch {
             /* noop */
           }
-          replaceWithError(`빈 응답 (finishReason=${reason}). API 키/크레딧/모델을 확인하세요.`);
+          if (reason === 'tool-calls' || reason === 'stop') {
+            // 툴만 호출하고 자연스럽게 멈춤 → placeholder 제거.
+            setMessages((m) => {
+              const next = [...m];
+              if (next[assistantIdx]?.role === 'assistant' && !next[assistantIdx].text) {
+                next.splice(assistantIdx, 1);
+              }
+              return next;
+            });
+          } else {
+            replaceWithError(`빈 응답 (finishReason=${reason}). API 키/크레딧/모델을 확인하세요.`);
+          }
         } else {
           setMessages((m) => {
             const next = [...m];

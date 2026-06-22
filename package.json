@@ -1,6 +1,6 @@
 {
   "name": "byuckchon-frontend-cli",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "description": "Byuckchon Frontend Workbench — project starter + AI chat + codebase RAG + OpenAPI codegen",
   "type": "module",
   "engines": {

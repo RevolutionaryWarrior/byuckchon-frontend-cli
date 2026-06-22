@@ -1,13 +1,16 @@
 import process from 'node:process';
 
 import chalk from 'chalk';
-import { streamText } from 'ai';
+import { streamText, stepCountIs } from 'ai';
+
+import path from 'node:path';
 
 import { loadEffectiveConfig } from '../config/index.js';
 import { resolveModel } from '../ai/provider.js';
 import { TokenMeter } from '../ai/tokenMeter.js';
 import { buildSystemPrompt } from '../ai/systemPrompt.js';
 import { findModel } from '../ai/models.js';
+import { buildTools } from '../ai/tools.js';
 import {
   createSession,
   saveSession,
@@ -189,15 +192,39 @@ async function runInkApp({ cfg, resolved, system, session, openapiInfo }) {
 
 async function runOnce({ cfg, resolved, system, prompt }) {
   const meter = new TokenMeter(resolved.meta, cfg.effective.limits);
+  const projectRoot = cfg.paths.projectFile
+    ? path.dirname(cfg.paths.projectFile)
+    : process.cwd();
+  const tools = buildTools({
+    projectRoot,
+    effective: cfg.effective,
+    onEvent: (ev) => {
+      const label =
+        ev.kind === 'write_created'
+          ? '🆕'
+          : ev.kind === 'write_overwritten'
+            ? '✏️ '
+            : ev.kind === 'edit'
+              ? '✏️ '
+              : '·';
+      console.log(chalk.dim(`  ${label} ${ev.path}`));
+    },
+  });
   const result = streamText({
     model: resolved.model,
     system,
     messages: [{ role: 'user', content: prompt }],
+    tools,
+    stopWhen: stepCountIs(12),
     onError: ({ error }) => {
       console.error(chalk.red('\n  AI 호출 에러: ') + (error?.message ?? error));
     },
   });
-  for await (const delta of result.textStream) process.stdout.write(delta);
+  for await (const part of result.fullStream) {
+    if (part.type === 'text-delta') process.stdout.write(part.text);
+    else if (part.type === 'tool-call')
+      process.stdout.write(chalk.dim(`\n  🔧 ${part.toolName}\n`));
+  }
   process.stdout.write('\n');
   try {
     meter.add(await result.usage);
@@ -257,10 +284,30 @@ async function runReadlineFallback({ cfg, resolved, system, session, openapiInfo
     history.push({ role: 'user', content: line });
     rl.pause();
 
+    const projectRoot = cfg.paths.projectFile
+      ? path.dirname(cfg.paths.projectFile)
+      : process.cwd();
+    const tools = buildTools({
+      projectRoot,
+      effective: cfg.effective,
+      onEvent: (ev) => {
+        const label =
+          ev.kind === 'write_created'
+            ? '🆕 생성'
+            : ev.kind === 'write_overwritten'
+              ? '✏️  덮어씀'
+              : ev.kind === 'edit'
+                ? '✏️  편집'
+                : '·';
+        console.log(chalk.dim(`\n  ${label} ${ev.path}`));
+      },
+    });
     const result = streamText({
       model: resolved.model,
       system,
       messages: history,
+      tools,
+      stopWhen: stepCountIs(12),
       onError: ({ error }) => {
         console.error(chalk.red('\n  AI 호출 에러: ') + (error?.message ?? error));
       },
@@ -268,9 +315,13 @@ async function runReadlineFallback({ cfg, resolved, system, session, openapiInfo
     process.stdout.write(chalk.bold.green('\n  bc › '));
     let acc = '';
     try {
-      for await (const delta of result.textStream) {
-        acc += delta;
-        process.stdout.write(delta);
+      for await (const part of result.fullStream) {
+        if (part.type === 'text-delta') {
+          acc += part.text;
+          process.stdout.write(part.text);
+        } else if (part.type === 'tool-call') {
+          process.stdout.write(chalk.dim(`\n  🔧 ${part.toolName}`));
+        }
       }
     } catch (err) {
       console.error('\n' + chalk.red('  스트리밍 중단: ') + (err?.message ?? err));
