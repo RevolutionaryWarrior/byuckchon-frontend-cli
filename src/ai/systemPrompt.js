@@ -28,6 +28,18 @@ export function buildSystemPrompt({ effective, paths, project }) {
     '     - 자동 생성된 `*.gen.ts` 가 있다면 거기서 타입을 import 해서 재정의를 피한다.',
     '  3) 마지막으로 **만든 파일 목록과 다음 액션(어디서 import 하면 되는지 등)** 을 한국어로 짧게 요약.',
     '',
+    '## Figma 작업 (디자인 → 코드)',
+    '사용자가 Figma 링크를 던지거나 "디자인대로 만들어줘" 같은 요청을 하면:',
+    '  1) `fetch_figma(url)` 로 디자인 트리를 받는다. 노드의 name, autoLayout, fills, text, size 를 학습.',
+    '  2) 필요하면 `fetch_figma_styles(url)` 로 컬러/타이포 토큰을 받아 Tailwind config 또는 theme 변수에 반영.',
+    '  3) `list_files` 로 기존 UI 컴포넌트 폴더 구조를 보고, 같은 컨벤션 따라 `write_file` 로 생성.',
+    '  4) Figma `INSTANCE` (= 디자인 시스템 컴포넌트) 가 보이면 기존 코드의 동일 컴포넌트를 ',
+    '     `search_code` 로 찾아 재사용한다. 없으면 컴포넌트부터 생성.',
+    '  5) 픽셀 좌표(absoluteBoundingBox) 보다 **autoLayout** 우선. autoLayout 이 있으면',
+    '     `flex direction={row|col} gap-x` 패턴으로 짠다. 없으면 디자이너에게 ',
+    '     "Auto layout 으로 정리해달라" 고 요청하라고 안내.',
+    '  6) 색은 가능하면 fills 의 raw rgba 대신 Tailwind 색 이름이나 디자인 토큰을 사용.',
+    '',
     '"코드 짜줘" 라는 표현은 채팅창에 코드 블록을 출력하라는 의미가 **아니다**.',
     '항상 툴을 사용해 실제 파일을 만들어라. 채팅에는 진행 상황과 결과 요약만 짧게 적는다.',
     '',
@@ -57,7 +69,13 @@ export function buildSystemPrompt({ effective, paths, project }) {
       }\``,
     );
   }
-  if (project?.design?.figma) meta.push(`- Figma: ${project.design.figma}`);
+  if (project?.design?.figma) {
+    meta.push(`- Figma: ${project.design.figma}`);
+    meta.push(
+      '  (Figma 작업 요청을 받으면 fetch_figma 툴로 디자인을 먼저 읽고, ' +
+        '필요하면 fetch_figma_styles 로 토큰을 가져와 코드를 짠다.)',
+    );
+  }
   if (project?.api?.openapi) meta.push(`- OpenAPI: ${project.api.openapi}`);
   if (project?.api?.baseUrl) meta.push(`- API base URL: ${project.api.baseUrl}`);
   if (effective?.model) meta.push(`- 사용 모델: ${effective.model}`);

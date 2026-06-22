@@ -141,6 +141,13 @@ export async function adoptCommand(opts = {}) {
   if (!process.env.ANTHROPIC_API_KEY) {
     console.log(chalk.dim('    bc config set-key anthropic    # API 키 등록'));
   }
+  if (next.design.figma && !process.env.FIGMA_TOKEN) {
+    console.log(
+      chalk.dim(
+        '    .env 에 FIGMA_TOKEN=figd-... 추가  # https://www.figma.com/settings 에서 발급',
+      ),
+    );
+  }
   console.log(chalk.dim('    bc chat                        # 이 프로젝트 컨텍스트로 대화'));
   console.log();
 }

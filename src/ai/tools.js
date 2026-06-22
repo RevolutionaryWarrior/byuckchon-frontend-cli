@@ -5,6 +5,13 @@ import fg from 'fast-glob';
 import { tool } from 'ai';
 
 import { searchIndex } from '../indexer/search.js';
+import {
+  fetchFromUrl as fetchFigmaFromUrl,
+  fetchImageUrls as fetchFigmaImageUrls,
+  fetchStyles as fetchFigmaStyles,
+} from '../figma/api.js';
+import { simplifyFetchNodes } from '../figma/simplify.js';
+import { parseFigmaUrl } from '../figma/url.js';
 
 /**
  * Agentic chat 용 툴 정의.
@@ -164,6 +171,91 @@ export function buildTools({ projectRoot, effective, onEvent = () => {} }) {
     return { ok: true, path: rel, action: 'edited' };
   }
 
+  // ─────────── Figma 툴 ───────────
+
+  async function fetchFigma({ url, depth = 4 }) {
+    try {
+      const result = await fetchFigmaFromUrl({ url, effective, depth });
+      if (result.kind === 'file') {
+        return {
+          ok: true,
+          kind: 'file_summary',
+          file: result.summary.name,
+          pages: result.summary.pages,
+          hint:
+            'node-id 가 없는 파일 링크입니다. 디자이너에게 특정 frame 의 ' +
+            '"Copy link to selection" 을 받아오면 더 정확한 코드 생성 가능.',
+        };
+      }
+      const simple = simplifyFetchNodes(result.raw);
+      return {
+        ok: true,
+        kind: 'nodes',
+        fileKey: result.fileKey,
+        nodeId: result.nodeId,
+        documents: simple.documents,
+        components: simple.components,
+        styles: simple.styles,
+      };
+    } catch (err) {
+      return { ok: false, error: err?.message ?? String(err), status: err?.status };
+    }
+  }
+
+  async function fetchFigmaImage({ url, format = 'png', scale = 2, savePath }) {
+    try {
+      const parsed = parseFigmaUrl(url);
+      if (!parsed?.nodeId) {
+        return { ok: false, error: 'node-id 가 있는 frame 링크가 필요합니다.' };
+      }
+      const images = await fetchFigmaImageUrls({
+        fileKey: parsed.fileKey,
+        nodeIds: [parsed.nodeId],
+        format,
+        scale,
+        effective,
+      });
+      const imageUrl = images[parsed.nodeId];
+      if (!imageUrl) {
+        return { ok: false, error: 'Figma 가 이미지 URL 을 돌려주지 않음' };
+      }
+      if (savePath) {
+        const { abs, rel } = safePath(savePath);
+        const res = await fetch(imageUrl);
+        const buf = Buffer.from(await res.arrayBuffer());
+        await fs.mkdir(path.dirname(abs), { recursive: true });
+        await fs.writeFile(abs, buf);
+        onEvent({ kind: 'write_created', path: rel, bytes: buf.byteLength });
+        return { ok: true, savedTo: rel, bytes: buf.byteLength, format };
+      }
+      return { ok: true, url: imageUrl, format, expiresInSeconds: 60 * 60 * 24 * 14 };
+    } catch (err) {
+      return { ok: false, error: err?.message ?? String(err) };
+    }
+  }
+
+  async function fetchFigmaStylesTool({ url }) {
+    try {
+      const parsed = parseFigmaUrl(url);
+      if (!parsed) return { ok: false, error: 'Figma URL 형식이 아닙니다.' };
+      const styles = await fetchFigmaStyles({ fileKey: parsed.fileKey, effective });
+      // 모델이 디자인 토큰을 만들 때 쓸 수 있도록 styleType 별로 그룹.
+      const grouped = {};
+      for (const s of styles) {
+        const t = s.style_type ?? s.styleType ?? 'OTHER';
+        (grouped[t] ??= []).push({
+          name: s.name,
+          description: s.description ?? '',
+          key: s.key,
+          nodeId: s.node_id ?? s.nodeId,
+        });
+      }
+      return { ok: true, fileKey: parsed.fileKey, total: styles.length, grouped };
+    } catch (err) {
+      return { ok: false, error: err?.message ?? String(err) };
+    }
+  }
+
   return {
     read_file: tool({
       description:
@@ -231,6 +323,52 @@ export function buildTools({ projectRoot, effective, onEvent = () => {} }) {
         additionalProperties: false,
       },
       execute: editFile,
+    }),
+    fetch_figma: tool({
+      description:
+        'Figma 노드 트리(컴포넌트/프레임/페이지) 를 읽는다. URL 에 node-id 가 있으면 그 frame 의 ' +
+        '간소화된 디자인 정보(autoLayout, fills, text, size, children 등) 를 반환. ' +
+        '없으면 파일 페이지 목록만. 컴포넌트/페이지 생성 요청을 받으면 이 툴을 먼저 호출해서 ' +
+        '디자인 의도를 학습한 뒤 코드를 짠다.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          url: { type: 'string', description: 'Figma share/copy link' },
+          depth: { type: 'number', default: 4, description: '노드 트리 탐색 깊이 (1-8)' },
+        },
+        required: ['url'],
+        additionalProperties: false,
+      },
+      execute: fetchFigma,
+    }),
+    fetch_figma_image: tool({
+      description:
+        'Figma 프레임을 PNG/JPG/SVG 이미지로 export. savePath 를 주면 프로젝트 폴더 안에 파일로 저장 ' +
+        '(스토리북 배경, public asset 등). 안 주면 임시 URL 만 반환.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          url: { type: 'string' },
+          format: { type: 'string', enum: ['png', 'jpg', 'svg', 'pdf'], default: 'png' },
+          scale: { type: 'number', default: 2 },
+          savePath: { type: 'string' },
+        },
+        required: ['url'],
+        additionalProperties: false,
+      },
+      execute: fetchFigmaImage,
+    }),
+    fetch_figma_styles: tool({
+      description:
+        'Figma 파일의 로컬 스타일(컬러/타이포/이펙트 토큰) 목록을 가져온다. 디자인 토큰 추출 / ' +
+        'Tailwind 테마 설정 / theme.ts 생성 시 사용.',
+      inputSchema: {
+        type: 'object',
+        properties: { url: { type: 'string' } },
+        required: ['url'],
+        additionalProperties: false,
+      },
+      execute: fetchFigmaStylesTool,
     }),
   };
 }

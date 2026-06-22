@@ -20,6 +20,7 @@ const DEFAULT_GLOBAL = {
     apiKeys: {
       // anthropic: 'sk-ant-...',
       // openai: 'sk-...',
+      // figma: 'figd-...'   // 통상 .env(FIGMA_TOKEN) 로 둠
     },
     /** 사내 게이트웨이를 쓰는 경우 base URL. 비우면 BYOK 모드. */
     gateway: null,
@@ -29,6 +30,14 @@ const DEFAULT_GLOBAL = {
     warnAtTokens: 50_000,
     /** 한 요청이 이 토큰을 넘으면 사용자에게 확인. */
     confirmAtTokens: 12_000,
+  },
+  ui: {
+    /**
+     * "ink" | "plain"
+     * 한글 IME 가 ink 에서 글자가 씹히면 "plain" 으로 두면 항상 readline 모드로 진입.
+     * --plain 플래그를 매번 안 쳐도 됨.
+     */
+    mode: 'ink',
   },
 };
 

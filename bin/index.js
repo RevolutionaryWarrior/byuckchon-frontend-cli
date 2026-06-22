@@ -17,6 +17,7 @@ import {
   configSetModelCommand,
   configSetKeyCommand,
   configSetGatewayCommand,
+  configSetUiCommand,
 } from '../src/commands/config.js';
 
 // 프로젝트 .env 가 있으면 자동 로드 (ANTHROPIC_API_KEY, OPENAI_API_KEY 등).
@@ -27,7 +28,7 @@ const program = new Command();
 program
   .name('bc')
   .description('Byuckchon Frontend Workbench — 프로젝트 스타터 + AI 어시스턴트')
-  .version('1.5.0');
+  .version('1.6.0');
 
 program
   .command('init')
@@ -126,6 +127,13 @@ cfg
   .description('사내 AI 게이트웨이 URL 설정 (인자 없으면 해제)')
   .action(async (url) => {
     await configSetGatewayCommand(url);
+  });
+
+cfg
+  .command('set-ui <mode>')
+  .description('chat 입력 모드: ink (풀 TUI) | plain (readline — 한글 IME 안정)')
+  .action(async (mode) => {
+    await configSetUiCommand(mode);
   });
 
 program.exitOverride((err) => {

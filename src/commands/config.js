@@ -51,6 +51,12 @@ export async function configShowCommand() {
   console.log(
     `    ${chalk.dim('요청 확인')}    ${eff.effective.limits.confirmAtTokens.toLocaleString()} tokens`,
   );
+  console.log();
+  console.log(chalk.bold('  UI'));
+  console.log(
+    `    ${chalk.dim('chat 입력 모드')}  ${eff.global?.ui?.mode ?? 'ink'} ` +
+      chalk.dim('(plain 으로 두면 한글 IME 안정. bc config set-ui plain)'),
+  );
 
   if (eff.paths.projectFile) {
     console.log();
@@ -128,6 +134,24 @@ export async function configSetKeyCommand(provider, key) {
     chalk.green(`\n  ✓ ${provider} API 키를 저장했습니다.`),
   );
   console.log(chalk.dim(`    파일: ${CONFIG_PATHS.globalFile} (chmod 600)\n`));
+}
+
+export async function configSetUiCommand(mode) {
+  const allowed = ['ink', 'plain'];
+  if (!allowed.includes(mode)) {
+    console.error(chalk.red(`사용법: bc config set-ui <${allowed.join('|')}>`));
+    console.error(
+      chalk.dim(
+        '  ink   = 풀 TUI (기본). 한글 IME 가 종종 씹히는 환경에서는 plain 권장.\n' +
+          '  plain = readline 폴백. 한글 입력 안정, 슬래시 명령/이미지 미지원.\n',
+      ),
+    );
+    process.exit(1);
+  }
+  const global = await loadGlobalConfig();
+  global.ui = { ...(global.ui ?? {}), mode };
+  await saveGlobalConfig(global);
+  console.log(chalk.green(`\n  ✓ chat 입력 모드를 '${mode}' 로 저장했습니다.\n`));
 }
 
 export async function configSetGatewayCommand(url) {

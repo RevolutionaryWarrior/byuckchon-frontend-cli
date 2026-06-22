@@ -133,8 +133,11 @@ export async function chatCommand(opts = {}) {
   await saveSession(session); // 빈 파일이라도 디스크에 만들어둠
 
   // ink 는 stdin/stdout 둘 다 TTY 이어야 정상 동작.
+  // - --plain 플래그가 명시되거나 비-TTY 면 readline 폴백.
+  // - 글로벌 ui.mode 가 "plain" 이면 한글 IME 가 깨지는 케이스를 자동 회피.
   const isTTY = process.stdin.isTTY && process.stdout.isTTY;
-  if (!isTTY || opts.plain) {
+  const wantPlain = opts.plain || cfg.global?.ui?.mode === 'plain';
+  if (!isTTY || wantPlain) {
     return runReadlineFallback({ cfg, resolved, system, session, openapiInfo });
   }
 
