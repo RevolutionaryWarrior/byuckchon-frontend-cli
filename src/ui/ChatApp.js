@@ -731,6 +731,7 @@ export function ChatApp({ initialConfig, initialResolved, session, onSessionUpda
       const tools = buildTools({
         projectRoot,
         effective: cfg.effective,
+        openapiSource: cfg.effective.api?.openapi ?? null,
         onEvent: onToolEvent,
       });
 

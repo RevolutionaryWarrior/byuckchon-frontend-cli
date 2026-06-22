@@ -12,6 +12,8 @@ import {
 } from '../figma/api.js';
 import { simplifyFetchNodes } from '../figma/simplify.js';
 import { parseFigmaUrl } from '../figma/url.js';
+import { getCachedOpenApi } from '../openapi/cache.js';
+import { searchEndpoints, getEndpoint } from '../openapi/lookup.js';
 
 /**
  * Agentic chat 용 툴 정의.
@@ -27,8 +29,20 @@ import { parseFigmaUrl } from '../figma/url.js';
  *   const tools = buildTools({ projectRoot, effective, onEvent });
  *   streamText({ tools, stopWhen: stepCountIs(12), ... });
  */
-export function buildTools({ projectRoot, effective, onEvent = () => {} }) {
+export function buildTools({ projectRoot, effective, onEvent = () => {}, openapiSource = null }) {
   const root = path.resolve(projectRoot);
+
+  // OpenAPI 스펙은 한 번만 로드해서 캐시 (큰 파일이라 반복 파싱 비쌈).
+  let _openapiDocPromise = null;
+  function loadOpenApiDoc() {
+    if (!openapiSource) return Promise.resolve(null);
+    if (!_openapiDocPromise) {
+      _openapiDocPromise = getCachedOpenApi(openapiSource)
+        .then((res) => res.doc ?? null)
+        .catch(() => null);
+    }
+    return _openapiDocPromise;
+  }
 
   function safePath(p) {
     if (!p || typeof p !== 'string') {
@@ -171,6 +185,44 @@ export function buildTools({ projectRoot, effective, onEvent = () => {} }) {
     return { ok: true, path: rel, action: 'edited' };
   }
 
+  // ─────────── OpenAPI 툴 ───────────
+
+  async function searchOpenApi({ query, limit = 40 }) {
+    const doc = await loadOpenApiDoc();
+    if (!doc) {
+      return {
+        ok: false,
+        error:
+          'OpenAPI 스펙을 불러올 수 없습니다. bc.config.json 의 api.openapi 가 올바른 JSON 스펙 URL 인지 확인하세요 ' +
+          '(NestJS 는 보통 /api/docs 가 아니라 /api/docs-json).',
+      };
+    }
+    const hits = searchEndpoints(doc, query, { limit });
+    return {
+      ok: true,
+      query,
+      count: hits.length,
+      endpoints: hits.map((e) => ({
+        method: e.method,
+        path: e.path,
+        summary: e.summary,
+        tags: e.tags,
+      })),
+      hint:
+        hits.length === 0
+          ? '매치 없음. 다른 키워드로 재시도하거나, query 를 비워 전체 목록을 받아 path 를 직접 고르세요.'
+          : '상세 스키마가 필요하면 get_openapi_endpoint(path, method) 를 호출하세요.',
+    };
+  }
+
+  async function getOpenApiEndpoint({ path: epPath, method }) {
+    const doc = await loadOpenApiDoc();
+    if (!doc) {
+      return { ok: false, error: 'OpenAPI 스펙을 불러올 수 없습니다.' };
+    }
+    return getEndpoint(doc, epPath, method);
+  }
+
   // ─────────── Figma 툴 ───────────
 
   async function fetchFigma({ url, depth = 4 }) {
@@ -294,6 +346,40 @@ export function buildTools({ projectRoot, effective, onEvent = () => {} }) {
         additionalProperties: false,
       }),
       execute: searchCode,
+    }),
+    search_openapi: tool({
+      description:
+        '연결된 OpenAPI(Swagger) 스펙에서 엔드포인트를 검색한다. path 일부("admin/inquiries"), ' +
+        '한글 summary("문의"), tag, operationId 어느 걸로도 검색 가능. ' +
+        'API 코드를 짜기 전에 반드시 이 툴로 정확한 경로/메서드를 먼저 확인할 것. ' +
+        '시스템 프롬프트의 요약은 잘려 있을 수 있으므로 "엔드포인트가 안 보인다" 싶으면 이 툴로 찾는다.',
+      inputSchema: jsonSchema({
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: '검색어 (path 일부/summary/tag). 비우면 전체 목록' },
+          limit: { type: 'number', default: 40 },
+        },
+        additionalProperties: false,
+      }),
+      execute: searchOpenApi,
+    }),
+    get_openapi_endpoint: tool({
+      description:
+        '특정 엔드포인트의 상세(parameters / requestBody / responses 스키마, $ref 인라인됨) 를 가져온다. ' +
+        'search_openapi 로 찾은 정확한 path 와 method 를 넘긴다. 이 결과로 zod 스키마/타입/요청 함수를 정확히 생성.',
+      inputSchema: jsonSchema({
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: '정확한 경로. 예: /api/admin/inquiries' },
+          method: {
+            type: 'string',
+            description: 'GET/POST/... 생략 시 해당 path 의 모든 메서드',
+          },
+        },
+        required: ['path'],
+        additionalProperties: false,
+      }),
+      execute: getOpenApiEndpoint,
     }),
     write_file: tool({
       description:

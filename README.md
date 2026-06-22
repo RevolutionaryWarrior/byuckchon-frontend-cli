@@ -74,8 +74,11 @@ bc init
 | `read_file`   | 프로젝트 내 파일/디렉터리 내용 읽기                     |
 | `list_files`  | 글롭 패턴으로 파일 나열                                 |
 | `search_code` | RAG 인덱스 의미 기반 검색 (인덱스 있어야 함)             |
+| `search_openapi` | OpenAPI 스펙에서 엔드포인트 검색 (path/summary/tag) — 큰 스펙도 OK |
+| `get_openapi_endpoint` | 특정 엔드포인트 상세 (params/requestBody/responses, `$ref` 인라인) |
 | `write_file`  | 새 파일 생성 또는 통째 덮어쓰기                          |
 | `edit_file`   | 유일한 `old_string → new_string` 으로 부분 수정 (안전)  |
+| `fetch_figma` / `fetch_figma_image` / `fetch_figma_styles` | Figma 디자인/이미지/토큰 |
 
 모델은 한 턴 안에서 **최대 12 step** 까지 툴을 자유롭게 호출합니다. 일반적인 흐름:
 1. `list_files` 로 `src/api/` 구조 파악
@@ -351,7 +354,8 @@ bc config set-ui ink                        # 풀 TUI 복귀
 - [x] v1.5.0 — 에이전트 모드 (read/list/search/write/edit 툴) — AI 가 실제 파일을 만든다
 - [x] v1.6.0 — Figma 툴 (fetch_figma / image / styles), 한글 IME 안정 plain 모드 (`bc config set-ui plain`)
 - [x] v1.6.1 — 툴 스키마 `jsonSchema()` 래핑 (`schema is not a function` 수정), plain 모드 이미지 첨부(`/image`·`/paste`) + iTerm2/kitty 인라인 썸네일
-- [ ] v1.7.0 — write/edit 승인 게이트 (`y/n/v/q`), diff 미리보기
+- [x] v1.7.0 — OpenAPI 검색 툴 (`search_openapi` / `get_openapi_endpoint`) — 큰 스펙(수백 엔드포인트)에서도 정확한 경로/스키마 조회. 요약도 path 당 1줄로 압축 + 한도 상향
+- [ ] v1.8.0 — write/edit 승인 게이트 (`y/n/v/q`), diff 미리보기
 - [ ] Phase 3c-2: Figma 실 fetch (URL → 노드 트리 → 컴포넌트 인텐트)
 - [ ] Phase 4: `bc gen component/page` (AST 편집 + 검증 루프), `/apply` diff 미리보기
 

@@ -14,8 +14,8 @@
  *     ...
  */
 const METHODS = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options'];
-const MAX_ENDPOINTS = 200;
-const MAX_BYTES = 8 * 1024;
+const MAX_PATHS = 400;
+const MAX_BYTES = 16 * 1024;
 
 export function summarizeOpenApi(doc) {
   if (!doc || typeof doc !== 'object') return null;
@@ -30,46 +30,42 @@ export function summarizeOpenApi(doc) {
     lines.push(`base: ${servers.slice(0, 3).join(', ')}`);
   }
 
-  const endpoints = [];
+  // path 하나당 한 줄로 메서드를 합친다 (줄 수 절반 + 모델이 path 단위로 보기 쉬움).
+  const byPath = [];
   for (const [pathStr, methods] of Object.entries(doc.paths ?? {})) {
     if (!methods || typeof methods !== 'object') continue;
-    for (const m of METHODS) {
-      const op = methods[m];
-      if (!op || typeof op !== 'object') continue;
-      const desc = op.summary || op.operationId || op.description || '';
-      endpoints.push({
-        method: m.toUpperCase(),
-        path: pathStr,
-        desc: desc.split('\n')[0].slice(0, 90),
-      });
-    }
+    const verbs = METHODS.filter((m) => methods[m] && typeof methods[m] === 'object').map((m) =>
+      m.toUpperCase(),
+    );
+    if (verbs.length === 0) continue;
+    byPath.push({ path: pathStr, verbs });
   }
+  byPath.sort((a, b) => a.path.localeCompare(b.path));
 
-  // 너무 많으면 자른다 — 모델이 알아야 하는 건 "어떤 종류의 엔드포인트가 있다" 정도면 충분.
-  const total = endpoints.length;
-  const shown = endpoints.slice(0, MAX_ENDPOINTS);
+  const total = byPath.length;
+  const shown = byPath.slice(0, MAX_PATHS);
 
-  lines.push(`endpoints: (${shown.length}/${total})`);
+  lines.push(`paths: (${shown.length}/${total})`);
   for (const e of shown) {
-    lines.push(`  ${e.method.padEnd(6)} ${e.path}${e.desc ? '  -- ' + e.desc : ''}`);
+    lines.push(`  ${e.verbs.join(',').padEnd(20)} ${e.path}`);
   }
   if (shown.length < total) {
-    lines.push(`  ... and ${total - shown.length} more`);
+    lines.push(`  ... and ${total - shown.length} more (search_openapi 로 검색하세요)`);
   }
 
   let result = lines.join('\n');
+  // 바이트 초과 시 뒤에서부터 잘라낸다 (search_openapi 가 있으니 전부 못 담아도 안전).
   if (Buffer.byteLength(result, 'utf8') > MAX_BYTES) {
-    // 안전 장치 — desc 다 자르고 다시.
-    const compact = [
-      lines[0],
-      servers.length ? lines[1] : null,
-      `endpoints: (${shown.length}/${total})`,
-      ...shown.map((e) => `  ${e.method.padEnd(6)} ${e.path}`),
-      shown.length < total ? `  ... and ${total - shown.length} more` : null,
-    ]
-      .filter(Boolean)
-      .join('\n');
-    result = compact;
+    const header = [lines[0], servers.length ? lines[1] : null].filter(Boolean);
+    const out = [...header, `paths: (truncated/${total}) — 전체는 search_openapi 로 검색`];
+    let bytes = Buffer.byteLength(out.join('\n'), 'utf8');
+    for (const e of shown) {
+      const line = `  ${e.verbs.join(',').padEnd(20)} ${e.path}`;
+      bytes += Buffer.byteLength(line + '\n', 'utf8');
+      if (bytes > MAX_BYTES) break;
+      out.push(line);
+    }
+    result = out.join('\n');
   }
   return result;
 }

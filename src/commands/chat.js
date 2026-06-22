@@ -86,11 +86,15 @@ export async function chatCommand(opts = {}) {
         };
         system =
           baseSystem +
-          '\n\n---\nOpenAPI 스펙 (자동 주입됨, 사용자가 별도로 명령 없이 알아서 사용 가능):\n' +
+          '\n\n---\nOpenAPI 스펙 개요 (아래 목록은 길면 잘려 있을 수 있음):\n' +
           summary +
-          '\n\n사용자가 API 관련 코드를 요청하면 위 스펙을 우선 참조하라. ' +
-          '응답 타입이 필요하면 \`bc gen api-types\` 실행을 권하거나, ' +
-          '이미 \`*.gen.ts\` 가 있으면 그걸 import 해서 쓰라고 안내한다.';
+          '\n\n**중요**: 위 목록은 일부만 보일 수 있다. 사용자가 특정 엔드포인트를 말하거나 ' +
+          '위 목록에서 안 보이면, 추측하지 말고 반드시 `search_openapi(query)` 로 정확한 ' +
+          'path/method 를 검색한 뒤 `get_openapi_endpoint(path, method)` 로 상세 스키마를 ' +
+          '가져와서 zod/타입/요청 함수를 만든다. ' +
+          '예: 사용자가 "inquiries" 라고 하면 search_openapi("inquiries") 로 ' +
+          '`/api/admin/inquiries` 같은 실제 경로를 찾아낸다. ' +
+          '이미 `*.gen.ts` 가 있으면 그걸 import 해서 쓰는 것도 좋다.';
       }
     } catch {
       /* 비정상 URL/네트워크 실패 — 무시하고 계속. */
@@ -204,6 +208,7 @@ async function runOnce({ cfg, resolved, system, prompt }) {
   const tools = buildTools({
     projectRoot,
     effective: cfg.effective,
+    openapiSource: cfg.effective.api?.openapi ?? null,
     onEvent: (ev) => {
       const label =
         ev.kind === 'write_created'
@@ -378,6 +383,7 @@ async function runReadlineFallback({ cfg, resolved, system, session, openapiInfo
     const tools = buildTools({
       projectRoot,
       effective: cfg.effective,
+      openapiSource: cfg.effective.api?.openapi ?? null,
       onEvent: (ev) => {
         const label =
           ev.kind === 'write_created'
