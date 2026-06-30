@@ -65,6 +65,11 @@ const DEFAULT_PROJECT = {
     exclude: ['**/*.test.*', '**/__mocks__/**', 'node_modules/**', 'dist/**'],
     maxFiles: 20,
   },
+  /**
+   * FE 전반 컨벤션을 적은 .md 경로들. 매 chat 세션에 시스템 프롬프트로 주입된다.
+   * 비우면 bc.md / .bc/conventions.md / AGENTS.md 등을 자동 탐지.
+   */
+  docs: [],
   /** bc adopt 가 채워준다. systemPrompt 가 읽어 모델에 알린다. */
   framework: null,
   detected: null,
@@ -181,6 +186,7 @@ export async function loadEffectiveConfig(startDir = process.cwd()) {
       design: project.design,
       api: project.api,
       context: project.context,
+      docs: project.docs ?? [],
     },
   };
 }

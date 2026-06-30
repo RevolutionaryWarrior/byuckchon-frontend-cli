@@ -115,7 +115,7 @@ async function pasteClipboardImage() {
  * 슬래시 명령은 Input 컴포넌트의 onSubmit 에서 가로채서 처리.
  */
 
-function Header({ modelMeta, projectFile, gateway, ragOn, hasIndex, openapiInfo }) {
+function Header({ modelMeta, projectFile, gateway, ragOn, hasIndex, openapiInfo, conventionFiles }) {
   let ragLabel;
   if (!hasIndex) ragLabel = '(준비 중 — 자동 빌드 또는 /index)';
   else if (ragOn) ragLabel = 'on (관련 코드 자동 주입)';
@@ -165,6 +165,14 @@ function Header({ modelMeta, projectFile, gateway, ragOn, hasIndex, openapiInfo 
           null,
           h(Text, { dimColor: true }, 'openapi  '),
           h(Text, null, openapiLabel),
+        )
+      : null,
+    conventionFiles?.length
+      ? h(
+          Box,
+          null,
+          h(Text, { dimColor: true }, 'docs     '),
+          h(Text, null, conventionFiles.join(', ')),
         )
       : null,
     gateway
@@ -870,6 +878,7 @@ export function ChatApp({ initialConfig, initialResolved, session, onSessionUpda
       ragOn: ragEnabled,
       hasIndex,
       openapiInfo: cfg.openapiInfo,
+      conventionFiles: cfg.conventionFiles,
     }),
     h(
       Box,

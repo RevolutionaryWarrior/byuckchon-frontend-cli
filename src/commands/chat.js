@@ -63,11 +63,36 @@ export async function chatCommand(opts = {}) {
     process.exit(1);
   }
 
-  const baseSystem = buildSystemPrompt({
+  let baseSystem = buildSystemPrompt({
     effective: cfg.effective,
     paths: cfg.paths,
     project: cfg.project,
   });
+
+  // 컨벤션 문서(.md) 자동 주입 — FE 전반 규칙, 스웨거→코드 변환 규칙 등.
+  // bc.config.json 의 docs:[...] 또는 bc.md/AGENTS.md 등 관례 파일을 읽는다.
+  let conventionFiles = [];
+  if (cfg.paths.projectFile) {
+    try {
+      const { loadConventionDocs } = await import('../context/conventions.js');
+      const projectRoot = path.dirname(cfg.paths.projectFile);
+      const conv = await loadConventionDocs({
+        projectRoot,
+        docs: cfg.effective.docs,
+        framework: cfg.project?.framework ?? cfg.project?.detected?.framework,
+      });
+      if (conv.text) {
+        conventionFiles = conv.files;
+        baseSystem +=
+          '\n\n---\n## 팀 컨벤션 문서 (반드시 우선 준수)\n' +
+          '아래는 이 프로젝트/팀의 프론트엔드 컨벤션이다. 코드 생성·수정 시 여기 규칙을 ' +
+          '기존 코드 패턴보다 우선 적용한다. 충돌하면 이 문서를 따른다.\n\n' +
+          conv.text;
+      }
+    } catch {
+      /* 문서 로딩 실패는 무시 */
+    }
+  }
 
   // OpenAPI 자동 주입 — bc.config.json 의 api.openapi 가 있으면 fetch 후 요약을
   // 시스템 프롬프트에 박는다. 1시간 캐시. 실패해도 chat 은 그대로 동작.
@@ -145,10 +170,10 @@ export async function chatCommand(opts = {}) {
   const isTTY = process.stdin.isTTY && process.stdout.isTTY;
   const wantPlain = opts.plain || cfg.global?.ui?.mode === 'plain';
   if (!isTTY || wantPlain) {
-    return runReadlineFallback({ cfg, resolved, system, session, openapiInfo });
+    return runReadlineFallback({ cfg, resolved, system, session, openapiInfo, conventionFiles });
   }
 
-  return runInkApp({ cfg, resolved, system, session, openapiInfo });
+  return runInkApp({ cfg, resolved, system, session, openapiInfo, conventionFiles });
 }
 
 async function printHistoryList() {
@@ -172,14 +197,14 @@ async function printHistoryList() {
 
 /* ───────────────────────── ink 모드 ───────────────────────── */
 
-async function runInkApp({ cfg, resolved, system, session, openapiInfo }) {
+async function runInkApp({ cfg, resolved, system, session, openapiInfo, conventionFiles = [] }) {
   // ink/React 는 무겁고 비-TTY 환경에서 import 만으로도 종종 문제 일으키므로
   // 여기서 늦게 import 한다 (--once / pipe 모드에 영향 없도록).
   const { render } = await import('ink');
   const { ChatApp } = await import('../ui/ChatApp.js');
   const React = (await import('react')).default;
 
-  const initialConfig = { ...cfg, system, openapiInfo };
+  const initialConfig = { ...cfg, system, openapiInfo, conventionFiles };
 
   const onSessionUpdate = async (messages) => {
     session.messages = messages;
@@ -247,7 +272,7 @@ async function runOnce({ cfg, resolved, system, prompt }) {
 
 /* ──────────────────── 비-TTY / --plain 폴백 ──────────────────── */
 
-async function runReadlineFallback({ cfg, resolved, system, session, openapiInfo }) {
+async function runReadlineFallback({ cfg, resolved, system, session, openapiInfo, conventionFiles = [] }) {
   const readline = await import('node:readline');
   const meter = new TokenMeter(resolved.meta, cfg.effective.limits);
 
@@ -258,6 +283,9 @@ async function runReadlineFallback({ cfg, resolved, system, session, openapiInfo
     console.log(
       chalk.dim('  openapi: ' + openapiInfo.source + (openapiInfo.cached ? ' (cached)' : ' (live)')),
     );
+  }
+  if (conventionFiles.length) {
+    console.log(chalk.dim('  컨벤션 문서: ' + conventionFiles.join(', ')));
   }
   if (session?.messages?.length) {
     console.log(chalk.dim(`  세션: ${session.id} (${session.messages.length} turns 이어가기)`));
