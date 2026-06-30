@@ -7,6 +7,10 @@ import inquirer from 'inquirer';
 import { detectProjectContext, summarizeContext } from '../context/detect.js';
 import { CONFIG_PATHS } from '../config/index.js';
 import { modelChoices, DEFAULT_MODEL_ID } from '../ai/models.js';
+import {
+  apiRootForFramework,
+  scaffoldApiConventionDoc,
+} from '../generators/apiConventionDoc.js';
 
 /**
  * `bc adopt`
@@ -119,6 +123,9 @@ export async function adoptCommand(opts = {}) {
       exclude: ['**/*.test.*', '**/__mocks__/**', 'node_modules/**', 'dist/**', '.next/**'],
       maxFiles: 20,
     },
+    docs: existing?.docs ?? [
+      path.posix.join(apiRootForFramework(ctx.framework), 'api-codegen.md'),
+    ],
     framework: ctx.framework,
     detected: {
       language: ctx.language,
@@ -136,7 +143,23 @@ export async function adoptCommand(opts = {}) {
   await fs.writeFile(targetFile, JSON.stringify(next, null, 2) + '\n', 'utf8');
 
   console.log(chalk.green(`\n  ✓ ${CONFIG_PATHS.projectFileName} 작성 완료.`));
-  console.log(chalk.dim(`    ${targetFile}\n`));
+  console.log(chalk.dim(`    ${targetFile}`));
+
+  // API 코드 컨벤션 .md 를 API 루트(src/api | lib/api)에 깐다 (이미 있으면 유지).
+  try {
+    const { relPath, written } = await scaffoldApiConventionDoc({
+      projectRoot: cwd,
+      framework: ctx.framework,
+    });
+    if (written) {
+      console.log(chalk.green(`  ✓ API 코드 컨벤션 문서 생성: ${relPath}`));
+    } else {
+      console.log(chalk.dim(`  API 코드 컨벤션 문서 유지: ${relPath} (이미 존재)`));
+    }
+  } catch {
+    /* 문서 스캐폴드 실패는 치명적이지 않음 */
+  }
+  console.log();
   console.log(chalk.dim('  다음:'));
   if (!process.env.ANTHROPIC_API_KEY) {
     console.log(chalk.dim('    bc config set-key anthropic    # API 키 등록'));

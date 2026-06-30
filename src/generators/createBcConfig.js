@@ -1,6 +1,8 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
+import { apiRootForFramework } from './apiConventionDoc.js';
+
 /**
  * 새 프로젝트 루트에 `bc.config.json` 을 만든다.
  *
@@ -28,6 +30,8 @@ export async function createBcConfig(rootDir, config) {
       exclude: ['**/*.test.*', '**/__mocks__/**', 'node_modules/**', 'dist/**'],
       maxFiles: 20,
     },
+    // chat 시작 시 자동 주입되는 팀 컨벤션 문서. API 코드 가이드가 기본 포함.
+    docs: [path.posix.join(apiRootForFramework(config.framework), 'api-codegen.md')],
     framework: config.framework,
     // init 단계에선 사용자가 React/Next 중 골랐고 TS/Tailwind 가 항상 들어가니
     // 감지 결과를 미리 채워둔다 (bc adopt 의 detected 와 같은 모양).
