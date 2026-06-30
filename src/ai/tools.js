@@ -44,6 +44,39 @@ export function buildTools({ projectRoot, effective, onEvent = () => {}, openapi
     return _openapiDocPromise;
   }
 
+  // ── live refetch (서버가 세션 도중 스펙을 바꾼 경우 대비) ──
+  // 남용 방지: 세션당 최대 횟수 + 최소 간격 throttle.
+  const REFRESH_MAX = 6;
+  const REFRESH_MIN_INTERVAL_MS = 10_000;
+  let _refreshCount = 0;
+  let _lastRefreshAt = 0;
+
+  /**
+   * 캐시를 무시하고 OpenAPI 스펙을 다시 fetch 한다.
+   * @returns {Promise<{ doc: object|null, refreshed: boolean, reason?: string }>}
+   */
+  async function refreshOpenApiDoc() {
+    if (!openapiSource) return { doc: null, refreshed: false, reason: 'no-source' };
+
+    const now = Date.now();
+    if (_refreshCount >= REFRESH_MAX) {
+      return { doc: await loadOpenApiDoc(), refreshed: false, reason: 'limit' };
+    }
+    if (now - _lastRefreshAt < REFRESH_MIN_INTERVAL_MS) {
+      return { doc: await loadOpenApiDoc(), refreshed: false, reason: 'throttled' };
+    }
+
+    _refreshCount += 1;
+    _lastRefreshAt = now;
+    _openapiDocPromise = getCachedOpenApi(openapiSource, { force: true })
+      .then((res) => res.doc ?? null)
+      .catch(() => null);
+
+    const doc = await _openapiDocPromise;
+    onEvent({ kind: 'openapi_refreshed', ok: !!doc });
+    return { doc, refreshed: true };
+  }
+
   function safePath(p) {
     if (!p || typeof p !== 'string') {
       throw new Error('path 가 비어있습니다');
@@ -188,7 +221,11 @@ export function buildTools({ projectRoot, effective, onEvent = () => {}, openapi
   // ─────────── OpenAPI 툴 ───────────
 
   async function searchOpenApi({ query, limit = 40 }) {
-    const doc = await loadOpenApiDoc();
+    let doc = await loadOpenApiDoc();
+    if (!doc) {
+      // 첫 로드 실패면 한 번 live refetch 시도.
+      ({ doc } = await refreshOpenApiDoc());
+    }
     if (!doc) {
       return {
         ok: false,
@@ -197,11 +234,25 @@ export function buildTools({ projectRoot, effective, onEvent = () => {}, openapi
           '(NestJS 는 보통 /api/docs 가 아니라 /api/docs-json).',
       };
     }
-    const hits = searchEndpoints(doc, query, { limit });
+
+    let hits = searchEndpoints(doc, query, { limit });
+    let refreshed = false;
+
+    // 캐시된 스펙에서 못 찾으면 → 서버에서 방금 추가됐을 수 있으니 딱 한 번 live refetch 후 재검색.
+    if (hits.length === 0) {
+      const r = await refreshOpenApiDoc();
+      if (r.refreshed && r.doc) {
+        refreshed = true;
+        doc = r.doc;
+        hits = searchEndpoints(doc, query, { limit });
+      }
+    }
+
     return {
       ok: true,
       query,
       count: hits.length,
+      refreshed,
       endpoints: hits.map((e) => ({
         method: e.method,
         path: e.path,
@@ -210,17 +261,63 @@ export function buildTools({ projectRoot, effective, onEvent = () => {}, openapi
       })),
       hint:
         hits.length === 0
-          ? '매치 없음. 다른 키워드로 재시도하거나, query 를 비워 전체 목록을 받아 path 를 직접 고르세요.'
-          : '상세 스키마가 필요하면 get_openapi_endpoint(path, method) 를 호출하세요.',
+          ? (refreshed
+              ? '최신 스펙을 다시 받아왔는데도 매치가 없습니다. 다른 키워드로 재시도하거나 query 를 비워 전체 목록을 확인하세요.'
+              : '매치 없음. 다른 키워드로 재시도하거나, query 를 비워 전체 목록을 받아 path 를 직접 고르세요.')
+          : (refreshed
+              ? '캐시엔 없던 항목을 최신 스펙에서 찾았습니다. 상세는 get_openapi_endpoint(path, method).'
+              : '상세 스키마가 필요하면 get_openapi_endpoint(path, method) 를 호출하세요.'),
     };
   }
 
   async function getOpenApiEndpoint({ path: epPath, method }) {
-    const doc = await loadOpenApiDoc();
+    let doc = await loadOpenApiDoc();
+    if (!doc) {
+      ({ doc } = await refreshOpenApiDoc());
+    }
     if (!doc) {
       return { ok: false, error: 'OpenAPI 스펙을 불러올 수 없습니다.' };
     }
-    return getEndpoint(doc, epPath, method);
+
+    let result = getEndpoint(doc, epPath, method);
+
+    // 못 찾으면 → 최신 스펙으로 한 번 더.
+    if (!result.ok) {
+      const r = await refreshOpenApiDoc();
+      if (r.refreshed && r.doc) {
+        const retry = getEndpoint(r.doc, epPath, method);
+        if (retry.ok) result = { ...retry, refreshed: true };
+        else result = { ...retry, refreshed: true };
+      }
+    }
+    return result;
+  }
+
+  async function refreshOpenApi() {
+    if (!openapiSource) {
+      return { ok: false, error: 'bc.config.json 에 api.openapi 가 설정되어 있지 않습니다.' };
+    }
+    const r = await refreshOpenApiDoc();
+    if (!r.doc) {
+      return {
+        ok: false,
+        refreshed: r.refreshed,
+        error:
+          r.reason === 'throttled'
+            ? '방금 새로고침했습니다. 잠시 후 다시 시도하세요.'
+            : '스펙을 다시 받아오지 못했습니다 (네트워크/URL 확인).',
+      };
+    }
+    const count = (r.doc.paths ? Object.keys(r.doc.paths).length : 0);
+    return {
+      ok: true,
+      refreshed: r.refreshed,
+      reason: r.refreshed ? undefined : r.reason,
+      paths: count,
+      message: r.refreshed
+        ? `최신 OpenAPI 스펙을 다시 받아왔습니다 (path ${count}개).`
+        : '최근에 이미 새로고침되어 캐시를 재사용했습니다.',
+    };
   }
 
   // ─────────── Figma 툴 ───────────
@@ -380,6 +477,20 @@ export function buildTools({ projectRoot, effective, onEvent = () => {}, openapi
         additionalProperties: false,
       }),
       execute: getOpenApiEndpoint,
+    }),
+    refresh_openapi: tool({
+      description:
+        '연결된 OpenAPI(Swagger) 스펙을 캐시 무시하고 서버에서 다시 받아온다. ' +
+        '사용자가 "방금 스웨거(백엔드 API) 를 업데이트했다 / 다시 읽어라" 라고 하거나, ' +
+        'search_openapi 가 분명히 있어야 할 엔드포인트를 못 찾을 때 호출. ' +
+        '(search_openapi / get_openapi_endpoint 는 못 찾으면 자동으로 한 번 새로고침하므로, ' +
+        '명시적 요청이 있을 때만 직접 부르면 된다.)',
+      inputSchema: jsonSchema({
+        type: 'object',
+        properties: {},
+        additionalProperties: false,
+      }),
+      execute: refreshOpenApi,
     }),
     write_file: tool({
       description:
