@@ -17,10 +17,12 @@ import { printInlineThumbnail } from '../ai/imagePreview.js';
 import {
   createSession,
   saveSession,
+  deleteSession,
   listSessions,
   loadSession,
   loadLatestSession,
 } from '../history/store.js';
+import { findLastRetryableUser, formatSessionList } from '../history/management.js';
 import { getCachedOpenApi } from '../openapi/cache.js';
 import { summarizeOpenApi } from '../openapi/summary.js';
 
@@ -162,8 +164,6 @@ export async function chatCommand(opts = {}) {
     // 모델은 사용자가 명시했거나 글로벌 설정으로 갱신 가능 — 세션의 model 은 표시용.
     session.model = resolved.meta.id;
   }
-  await saveSession(session); // 빈 파일이라도 디스크에 만들어둠
-
   // ink 는 stdin/stdout 둘 다 TTY 이어야 정상 동작.
   // - --plain 플래그가 명시되거나 비-TTY 면 readline 폴백.
   // - 글로벌 ui.mode 가 "plain" 이면 한글 IME 가 깨지는 케이스를 자동 회피.
@@ -206,9 +206,36 @@ async function runInkApp({ cfg, resolved, system, session, openapiInfo, conventi
 
   const initialConfig = { ...cfg, system, openapiInfo, conventionFiles };
 
+  let activeSession = session;
+
   const onSessionUpdate = async (messages) => {
-    session.messages = messages;
-    await saveSession(session);
+    const target = activeSession;
+    const hasConversation = messages.some(
+      (message) =>
+        (message.role === 'user' || message.role === 'assistant') &&
+        typeof message.text === 'string' &&
+        message.text.trim(),
+    );
+    if (!hasConversation && !target._persisted) return;
+    target.messages = messages;
+    await saveSession(target);
+  };
+
+  const onSessionSwitch = async (id) => {
+    const loaded = await loadSession(id);
+    loaded.model = resolved.meta.id;
+    activeSession = loaded;
+    return loaded;
+  };
+
+  const onSessionDelete = async (id) => {
+    const deletingActive = activeSession.id === id;
+    const result = await deleteSession(id);
+    if (!deletingActive) return { ...result, replacementSession: null };
+
+    const replacementSession = await createSession({ model: resolved.meta.id });
+    activeSession = replacementSession;
+    return { ...result, replacementSession };
   };
 
   const { waitUntilExit } = render(
@@ -217,6 +244,8 @@ async function runInkApp({ cfg, resolved, system, session, openapiInfo, conventi
       initialResolved: resolved,
       session,
       onSessionUpdate,
+      onSessionSwitch,
+      onSessionDelete,
     }),
     { exitOnCtrlC: false },
   );
@@ -291,7 +320,9 @@ async function runReadlineFallback({ cfg, resolved, system, session, openapiInfo
     console.log(chalk.dim(`  세션: ${session.id} (${session.messages.length} turns 이어가기)`));
   }
   console.log(
-    chalk.dim('  /image <경로> · /paste(클립보드 이미지) · /clear-attach · /exit\n'),
+    chalk.dim(
+      '  /history · /retry · /image <경로> · /paste · /clear-attach · /exit\n',
+    ),
   );
 
   // 다음 메시지에 함께 보낼 이미지 첨부 목록.
@@ -341,6 +372,21 @@ async function runReadlineFallback({ cfg, resolved, system, session, openapiInfo
   const history = (session?.messages ?? [])
     .filter((m) => m.role === 'user' || m.role === 'assistant')
     .map((m) => ({ role: m.role, content: m.text ?? '' }));
+  const persistHistory = async () => {
+    if (!session) return;
+    session.messages = history.map((message) => {
+      // 이미지 바이트는 세션 파일에 저장하지 않고 사용자 텍스트만 보존한다.
+      if (Array.isArray(message.content)) {
+        const textPart = message.content.find((part) => part.type === 'text');
+        return {
+          role: message.role,
+          text: textPart?.text ?? '[이미지 첨부]',
+        };
+      }
+      return { role: message.role, text: message.content };
+    });
+    await saveSession(session);
+  };
   const ask = () => rl.prompt();
 
   rl.on('close', () => {
@@ -358,6 +404,29 @@ async function runReadlineFallback({ cfg, resolved, system, session, openapiInfo
     if (line === '/exit' || line === '/quit') {
       rl.close();
       return;
+    }
+    if (line === '/history') {
+      try {
+        const sessions = await listSessions();
+        console.log(chalk.dim('\n' + formatSessionList(sessions)));
+        console.log(chalk.dim('\n  이어가기: bc chat --resume <id>'));
+      } catch (err) {
+        console.log(chalk.red('  대화 목록을 불러올 수 없습니다: ' + err.message));
+      }
+      ask();
+      continue;
+    }
+    let retryContent = null;
+    if (line === '/retry') {
+      const retry = findLastRetryableUser(history);
+      if (!retry) {
+        console.log(chalk.red('  다시 실행할 사용자 요청이 없습니다.'));
+        ask();
+        continue;
+      }
+      retryContent = retry.message.content;
+      history.splice(retry.index);
+      console.log(chalk.dim('  마지막 요청을 다시 실행합니다.'));
     }
     // 이미지 첨부 관련 슬래시 명령 — plain 모드에서도 지원.
     if (line.startsWith('/image')) {
@@ -388,7 +457,9 @@ async function runReadlineFallback({ cfg, resolved, system, session, openapiInfo
     }
 
     // 일반 메시지 — 첨부가 있으면 멀티모달 content 로 구성.
-    if (pendingAttachments.length) {
+    if (retryContent != null) {
+      history.push({ role: 'user', content: retryContent });
+    } else if (pendingAttachments.length) {
       const parts = [{ type: 'text', text: line }];
       try {
         for (const att of pendingAttachments) {
@@ -402,6 +473,11 @@ async function runReadlineFallback({ cfg, resolved, system, session, openapiInfo
       pendingAttachments = [];
     } else {
       history.push({ role: 'user', content: line });
+    }
+    try {
+      await persistHistory();
+    } catch {
+      /* 저장 실패가 AI 요청을 막지는 않게 한다. */
     }
     rl.pause();
 
@@ -457,21 +533,11 @@ async function runReadlineFallback({ cfg, resolved, system, session, openapiInfo
     }
     if (acc) history.push({ role: 'assistant', content: acc });
 
-    // 세션 자동 저장 — readline 모드에서도 끊김 대비.
-    if (session) {
-      session.messages = history.map((h) => {
-        // 멀티모달(content 가 배열) 인 경우 text 파트만 추출해 저장 (이미지 바이트는 세션에 안 남김).
-        if (Array.isArray(h.content)) {
-          const textPart = h.content.find((p) => p.type === 'text');
-          return { role: h.role, text: textPart?.text ?? '[이미지 첨부]' };
-        }
-        return { role: h.role, text: h.content };
-      });
-      try {
-        await saveSession(session);
-      } catch {
-        /* noop */
-      }
+    // 응답까지 포함한 최신 상태로 다시 저장한다.
+    try {
+      await persistHistory();
+    } catch {
+      /* noop */
     }
 
     rl.resume();

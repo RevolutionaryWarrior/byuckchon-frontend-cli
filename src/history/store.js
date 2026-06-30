@@ -49,7 +49,7 @@ export async function createSession({ model, cwd = process.cwd() } = {}) {
     cwd,
     messages: [],
   };
-  return { ...session, _file: path.join(dir, `${id}.json`) };
+  return { ...session, _file: path.join(dir, `${id}.json`), _persisted: false };
 }
 
 export async function saveSession(session) {
@@ -64,6 +64,7 @@ export async function saveSession(session) {
     messages: session.messages,
   };
   await fs.writeFile(file, JSON.stringify(data, null, 2) + '\n', 'utf8');
+  session._persisted = true;
 }
 
 export async function listSessions(cwd = process.cwd(), { limit = 20 } = {}) {
@@ -77,19 +78,27 @@ export async function listSessions(cwd = process.cwd(), { limit = 20 } = {}) {
   }
   const files = entries.filter((f) => f.endsWith('.json')).sort().reverse();
   const out = [];
-  for (const name of files.slice(0, limit)) {
+  for (const name of files) {
+    if (out.length >= limit) break;
     const file = path.join(dir, name);
     try {
       const raw = await fs.readFile(file, 'utf8');
       const data = JSON.parse(raw);
-      const firstUser = data.messages?.find((m) => m.role === 'user');
+      const conversation = (data.messages ?? []).filter(
+        (message) =>
+          (message.role === 'user' || message.role === 'assistant') &&
+          typeof message.text === 'string' &&
+          message.text.trim(),
+      );
+      if (conversation.length === 0) continue;
+      const firstUser = conversation.find((message) => message.role === 'user');
       out.push({
         id: data.id,
         file,
         startedAt: data.startedAt,
         updatedAt: data.updatedAt,
         model: data.model,
-        turns: data.messages?.length ?? 0,
+        turns: conversation.length,
         preview: firstUser?.text?.slice(0, 60) ?? '(빈 세션)',
       });
     } catch {
@@ -107,11 +116,30 @@ export async function loadSession(idOrFile, cwd = process.cwd()) {
   }
   const raw = await fs.readFile(file, 'utf8');
   const data = JSON.parse(raw);
-  return { ...data, _file: file };
+  return { ...data, _file: file, _persisted: true };
 }
 
 export async function loadLatestSession(cwd = process.cwd()) {
   const list = await listSessions(cwd, { limit: 1 });
   if (list.length === 0) return null;
   return loadSession(list[0].id, cwd);
+}
+
+export async function deleteSession(id, cwd = process.cwd()) {
+  const normalized = String(id ?? '').replace(/\.json$/, '');
+  if (!/^[a-zA-Z0-9_-]+$/.test(normalized)) {
+    const error = new Error(`잘못된 세션 ID: ${id}`);
+    error.code = 'BC_INVALID_SESSION_ID';
+    throw error;
+  }
+
+  const dir = await getHistoryDir(cwd);
+  const file = path.join(dir, `${normalized}.json`);
+  try {
+    await fs.unlink(file);
+    return { id: normalized, file, deleted: true };
+  } catch (error) {
+    if (error.code === 'ENOENT') return { id: normalized, file, deleted: false };
+    throw error;
+  }
 }

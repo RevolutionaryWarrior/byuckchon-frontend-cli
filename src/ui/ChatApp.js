@@ -14,6 +14,8 @@ import { toSdkMessages, isImagePath } from '../ai/messageContent.js';
 import { buildTools } from '../ai/tools.js';
 import { searchIndex } from '../indexer/search.js';
 import { loadIndex, buildIndex } from '../indexer/store.js';
+import { listSessions } from '../history/store.js';
+import { findLastRetryableUser } from '../history/management.js';
 
 const h = React.createElement;
 
@@ -287,6 +289,8 @@ function AttachBar({ pending }) {
 const SLASH_COMMANDS = [
   { cmd: '/help', hint: '', desc: '명령 도움말' },
   { cmd: '/clear', hint: '', desc: '대화 컨텍스트 비우기' },
+  { cmd: '/history', hint: '', desc: '프로젝트의 이전 대화 목록' },
+  { cmd: '/retry', hint: '', desc: '마지막 사용자 요청 다시 실행' },
   { cmd: '/model', hint: '<id>', desc: '세션 모델 변경 (인자 없으면 목록)' },
   { cmd: '/cost', hint: '', desc: '누적 토큰/비용' },
   { cmd: '/image', hint: '<path>', desc: '이미지 첨부 (Finder 에서 끌어다 놔도 됨)' },
@@ -350,7 +354,45 @@ function SlashMenu({ items, activeIndex }) {
   );
 }
 
-export function ChatApp({ initialConfig, initialResolved, session, onSessionUpdate }) {
+function HistoryMenu({ items, activeIndex, activeSessionId, deleteId }) {
+  if (items.length === 0) return null;
+  return h(
+    Box,
+    {
+      flexDirection: 'column',
+      borderStyle: 'single',
+      borderColor: 'gray',
+      paddingX: 1,
+    },
+    h(Text, { bold: true }, '이전 대화'),
+    ...items.map((item, index) => {
+      const active = index === activeIndex;
+      const current = item.id === activeSessionId;
+      const when = item.updatedAt?.replace('T', ' ').slice(0, 16) ?? '';
+      return h(
+        Text,
+        {
+          key: item.id,
+          color: item.id === deleteId ? 'red' : active ? 'cyan' : undefined,
+          bold: active,
+        },
+        `${active ? '›' : ' '} ${item.id}${current ? ' (현재)' : ''}  ${when}  ${item.turns} turns\n  ${item.preview}`,
+      );
+    }),
+    deleteId
+      ? h(Text, { color: 'red' }, `${deleteId} 세션을 삭제할까요? y/n`)
+      : h(Text, { dimColor: true }, '↑↓ 선택 · Enter 불러오기 · d 삭제 · Esc 취소'),
+  );
+}
+
+export function ChatApp({
+  initialConfig,
+  initialResolved,
+  session,
+  onSessionUpdate,
+  onSessionSwitch,
+  onSessionDelete,
+}) {
   const app = useApp();
   const { stdout } = useStdout();
   const [cfg, setCfg] = useState(initialConfig);
@@ -380,12 +422,17 @@ export function ChatApp({ initialConfig, initialResolved, session, onSessionUpda
   const [indexProgress, setIndexProgress] = useState('');
   const [ragEnabled, setRagEnabled] = useState(true);
   const [menuIndex, setMenuIndex] = useState(0);
+  const [historyItems, setHistoryItems] = useState([]);
+  const [historyIndex, setHistoryIndex] = useState(0);
+  const [historyDeleteId, setHistoryDeleteId] = useState(null);
+  const [activeSessionId, setActiveSessionId] = useState(session?.id ?? null);
   const [, force] = useState(0);
   const rerender = useCallback(() => force((n) => n + 1), []);
 
   // 슬래시 메뉴: input 상태에 따라 동적으로 계산.
   const slashItems = state === 'idle' ? filterSlashCommands(input) : [];
   const slashOpen = slashItems.length > 0;
+  const historyOpen = state === 'idle' && historyItems.length > 0;
   // input 이 바뀌면 선택 인덱스를 0 으로 리셋 (필터 변경 시 자연스럽게).
   useEffect(() => {
     setMenuIndex(0);
@@ -507,6 +554,29 @@ export function ChatApp({ initialConfig, initialResolved, session, onSessionUpda
       app.exit();
       return;
     }
+    if (historyOpen) {
+      if (historyDeleteId) {
+        if (char.toLowerCase() === 'y') {
+          void deleteHistorySession();
+        } else if (char.toLowerCase() === 'n' || key.escape) {
+          setHistoryDeleteId(null);
+        }
+        return;
+      }
+      if (key.upArrow) {
+        setHistoryIndex((index) => Math.max(0, index - 1));
+      } else if (key.downArrow) {
+        setHistoryIndex((index) => Math.min(historyItems.length - 1, index + 1));
+      } else if (key.escape) {
+        setHistoryItems([]);
+      } else if (char.toLowerCase() === 'd') {
+        const selected = historyItems[historyIndex];
+        if (selected) setHistoryDeleteId(selected.id);
+      } else if (key.return) {
+        void selectHistorySession();
+      }
+      return;
+    }
     if (!slashOpen) return;
     if (key.upArrow) {
       setMenuIndex((i) => Math.max(0, i - 1));
@@ -550,6 +620,33 @@ export function ChatApp({ initialConfig, initialResolved, session, onSessionUpda
     if (cmd === 'clear') {
       setMessages([]);
       pushSystemInfo('대화 컨텍스트를 비웠습니다.');
+      return true;
+    }
+    if (cmd === 'history') {
+      try {
+        const sessions = await listSessions();
+        if (!sessions.length) {
+          pushSystemInfo('저장된 이전 세션이 없습니다.');
+          return true;
+        }
+        setHistoryItems(sessions.slice(0, 10));
+        setHistoryIndex(0);
+        setHistoryDeleteId(null);
+      } catch (err) {
+        pushSystemError('대화 목록을 불러올 수 없습니다: ' + err.message);
+      }
+      return true;
+    }
+    if (cmd === 'retry') {
+      const retry = findLastRetryableUser(messages);
+      if (!retry) {
+        pushSystemError('다시 실행할 사용자 요청이 없습니다.');
+        return true;
+      }
+      await sendMessage(retry.text, {
+        baseMessages: messages.slice(0, retry.index),
+        attachments: retry.message.attachments ?? [],
+      });
       return true;
     }
     if (cmd === 'cost') {
@@ -656,13 +753,70 @@ export function ChatApp({ initialConfig, initialResolved, session, onSessionUpda
     return true;
   };
 
-  const sendMessage = async (text) => {
+  const selectHistorySession = async () => {
+    const selected = historyItems[historyIndex];
+    if (!selected || !onSessionSwitch) return;
+
+    setHistoryItems([]);
+    setState('thinking');
+    try {
+      const loaded = await onSessionSwitch(selected.id);
+      setActiveSessionId(loaded.id);
+      setPendingAttachments([]);
+      setMessages([
+        ...(loaded.messages ?? []),
+        {
+          role: 'system-info',
+          text: `세션 ${loaded.id} 컨텍스트를 불러왔습니다.`,
+        },
+      ]);
+    } catch (err) {
+      pushSystemError('세션을 불러올 수 없습니다: ' + (err?.message ?? String(err)));
+    } finally {
+      setState('idle');
+    }
+  };
+
+  const deleteHistorySession = async () => {
+    const id = historyDeleteId;
+    if (!id || !onSessionDelete) return;
+
+    setHistoryDeleteId(null);
+    try {
+      const result = await onSessionDelete(id);
+      const remaining = historyItems.filter((item) => item.id !== id);
+      setHistoryItems(remaining);
+      setHistoryIndex((index) => Math.min(index, Math.max(0, remaining.length - 1)));
+
+      if (result.replacementSession) {
+        setActiveSessionId(result.replacementSession.id);
+        setPendingAttachments([]);
+        setMessages([
+          {
+            role: 'system-info',
+            text: `세션 ${id}을 삭제하고 새 세션을 시작했습니다.`,
+          },
+        ]);
+      } else {
+        pushSystemInfo(
+          result.deleted ? `세션 ${id}을 삭제했습니다.` : `세션 ${id}을 찾을 수 없습니다.`,
+        );
+      }
+    } catch (err) {
+      pushSystemError('세션을 삭제할 수 없습니다: ' + (err?.message ?? String(err)));
+    }
+  };
+
+  const sendMessage = async (
+    text,
+    { baseMessages = messages, attachments = pendingAttachments } = {},
+  ) => {
     const userMsg = {
       role: 'user',
       text,
-      attachments: pendingAttachments,
+      attachments,
     };
-    const newMessages = [...messages, userMsg];
+    const newMessages = [...baseMessages, userMsg];
     setMessages(newMessages);
     setPendingAttachments([]);
     setState('thinking');
@@ -896,12 +1050,20 @@ export function ChatApp({ initialConfig, initialResolved, session, onSessionUpda
       }),
     ),
     h(AttachBar, { pending: pendingAttachments }),
+    historyOpen
+      ? h(HistoryMenu, {
+          items: historyItems,
+          activeIndex: historyIndex,
+          activeSessionId,
+          deleteId: historyDeleteId,
+        })
+      : null,
     slashOpen ? h(SlashMenu, { items: slashItems, activeIndex: menuIndex }) : null,
     h(
       Box,
       { marginTop: 0 },
       h(Text, { color: 'magenta', bold: true }, 'you › '),
-      state === 'idle'
+      state === 'idle' && !historyOpen
         ? h(TextInput, {
             value: input,
             onChange: setInput,
@@ -912,7 +1074,15 @@ export function ChatApp({ initialConfig, initialResolved, session, onSessionUpda
             // 가짜 커서가 있으면 한글 IME 미리보기가 한 칸 어긋나 보일 수 있다.
             showCursor: false,
           })
-        : h(Text, { dimColor: true }, '(응답 받는 중 — 잠시만)'),
+        : h(
+            Text,
+            { dimColor: true },
+            historyOpen
+              ? historyDeleteId
+                ? '(y 또는 n을 입력하세요)'
+                : '(이전 대화를 선택하세요)'
+              : '(응답 받는 중 — 잠시만)',
+          ),
     ),
   );
 }
