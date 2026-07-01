@@ -287,6 +287,8 @@ TTY 안에서 자동으로 ink 모드로 뜨고, 파이프/CI 같은 비-TTY 환
 | `/history`          | 이전 대화 선택 후 해당 컨텍스트 이어가기     |
 | `/retry`            | 마지막 사용자 요청 다시 실행                |
 | `/model [id]`       | 세션 모델 변경 (인자 없으면 목록)           |
+| `/figma-link <url\|off>` | 프로젝트 Figma 링크 변경 또는 해제       |
+| `/openapi-link <url\|off>` | 프로젝트 OpenAPI 링크 변경 또는 해제    |
 | `/cost`             | 누적 토큰/비용                              |
 | `/image <path>`     | 다음 메시지에 이미지 첨부 (Vision 모델 권장) |
 | `/paste`            | 클립보드 이미지 첨부 (macOS, `pngpaste` 필요) |

@@ -25,6 +25,7 @@ import {
 import { findLastRetryableUser, formatSessionList } from '../history/management.js';
 import { getCachedOpenApi } from '../openapi/cache.js';
 import { summarizeOpenApi } from '../openapi/summary.js';
+import { updateProjectLink } from '../config/projectLinks.js';
 
 /**
  * `bc chat`
@@ -321,7 +322,7 @@ async function runReadlineFallback({ cfg, resolved, system, session, openapiInfo
   }
   console.log(
     chalk.dim(
-      '  /history · /retry · /image <경로> · /paste · /clear-attach · /exit\n',
+      '  /history · /retry · /figma-link <url|off> · /openapi-link <url|off> · /image <경로> · /exit\n',
     ),
   );
 
@@ -412,6 +413,32 @@ async function runReadlineFallback({ cfg, resolved, system, session, openapiInfo
         console.log(chalk.dim('\n  이어가기: bc chat --resume <id>'));
       } catch (err) {
         console.log(chalk.red('  대화 목록을 불러올 수 없습니다: ' + err.message));
+      }
+      ask();
+      continue;
+    }
+    if (/^\/(figma-link|openapi-link)(\s|$)/.test(line)) {
+      const isFigma = line === '/figma-link' || line.startsWith('/figma-link ');
+      const kind = isFigma ? 'figma' : 'openapi';
+      const label = isFigma ? 'Figma' : 'OpenAPI';
+      const command = line.match(/^\/(figma-link|openapi-link)/)[1];
+      const arg = line.slice(command.length + 1).trim();
+      if (!arg) {
+        const current = isFigma ? cfg.effective.design?.figma : cfg.effective.api?.openapi;
+        console.log(chalk.dim(`  현재 ${label}: ${current ?? '(미설정)'}`));
+        console.log(chalk.dim(`  사용법: /${kind} <url|off>`));
+        ask();
+        continue;
+      }
+      try {
+        cfg = await updateProjectLink(cfg, kind, arg);
+        const value = isFigma ? cfg.effective.design?.figma : cfg.effective.api?.openapi;
+        system += value
+          ? `\n\n[프로젝트 설정 변경] ${label} 소스는 ${value} 이다. 이전 ${label} 링크와 요약은 무시하고 이 값을 사용하라.`
+          : `\n\n[프로젝트 설정 변경] ${label} 링크가 해제되었다. 이전 ${label} 링크와 요약은 사용하지 마라.`;
+        console.log(chalk.green(`  ${label} 링크를 ${value ? '변경했습니다: ' + value : '해제했습니다.'}`));
+      } catch (err) {
+        console.log(chalk.red('  ' + err.message));
       }
       ask();
       continue;

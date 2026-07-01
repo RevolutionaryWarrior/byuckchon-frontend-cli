@@ -16,6 +16,7 @@ import { searchIndex } from '../indexer/search.js';
 import { loadIndex, buildIndex } from '../indexer/store.js';
 import { listSessions } from '../history/store.js';
 import { findLastRetryableUser } from '../history/management.js';
+import { updateProjectLink } from '../config/projectLinks.js';
 
 const h = React.createElement;
 
@@ -292,6 +293,8 @@ const SLASH_COMMANDS = [
   { cmd: '/history', hint: '', desc: '프로젝트의 이전 대화 목록' },
   { cmd: '/retry', hint: '', desc: '마지막 사용자 요청 다시 실행' },
   { cmd: '/model', hint: '<id>', desc: '세션 모델 변경 (인자 없으면 목록)' },
+  { cmd: '/figma-link', hint: '<url|off>', desc: '프로젝트 Figma 링크 변경/해제' },
+  { cmd: '/openapi-link', hint: '<url|off>', desc: '프로젝트 OpenAPI 링크 변경/해제' },
   { cmd: '/cost', hint: '', desc: '누적 토큰/비용' },
   { cmd: '/image', hint: '<path>', desc: '이미지 첨부 (Finder 에서 끌어다 놔도 됨)' },
   { cmd: '/paste', hint: '', desc: '클립보드의 이미지(스크린샷)를 첨부 — macOS' },
@@ -671,6 +674,27 @@ export function ChatApp({
         setCfg(nextCfg);
         setResolved(nextResolved);
         pushSystemInfo('세션 모델을 ' + nextResolved.meta.label + ' 로 변경했습니다.');
+      } catch (err) {
+        pushSystemError(err.message);
+      }
+      return true;
+    }
+    if (cmd === 'figma-link' || cmd === 'openapi-link') {
+      const kind = cmd === 'figma-link' ? 'figma' : 'openapi';
+      if (!arg) {
+        const current = kind === 'figma' ? cfg.effective.design?.figma : cfg.effective.api?.openapi;
+        pushSystemInfo(`현재 ${kind === 'figma' ? 'Figma' : 'OpenAPI'}: ${current ?? '(미설정)'}\n사용법: /${cmd} <url|off>`);
+        return true;
+      }
+      try {
+        const nextCfg = await updateProjectLink(cfg, kind, arg);
+        const label = kind === 'figma' ? 'Figma' : 'OpenAPI';
+        const value = kind === 'figma' ? nextCfg.effective.design?.figma : nextCfg.effective.api?.openapi;
+        const sessionRule = value
+          ? `\n\n[프로젝트 설정 변경] ${label} 소스는 ${value} 이다. 이전 ${label} 링크와 요약은 무시하고 이 값을 사용하라.`
+          : `\n\n[프로젝트 설정 변경] ${label} 링크가 해제되었다. 이전 ${label} 링크와 요약은 사용하지 마라.`;
+        setCfg({ ...nextCfg, system: cfg.system + sessionRule });
+        pushSystemInfo(`${label} 링크를 ${value ? '변경했습니다: ' + value : '해제했습니다.'}`);
       } catch (err) {
         pushSystemError(err.message);
       }
