@@ -871,6 +871,18 @@ export function ChatApp({
 
       // 툴 실행 이벤트는 채팅에 시스템 메시지로 표시 (사용자가 무엇이 일어났는지 보게).
       const onToolEvent = (ev) => {
+        if (ev.kind === 'openapi_refreshed') {
+          setMessages((m) => [
+            ...m,
+            {
+              role: 'system-info',
+              text: ev.ok
+                ? '🔄 OpenAPI 스펙 새로고침 (서버에서 최신본 다시 받음)'
+                : '⚠️  OpenAPI 새로고침 실패 (네트워크/URL 확인)',
+            },
+          ]);
+          return;
+        }
         const labels = {
           write_created: '🆕 생성',
           write_overwritten: '✏️  덮어씀',

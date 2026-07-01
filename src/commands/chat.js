@@ -121,6 +121,9 @@ export async function chatCommand(opts = {}) {
           '가져와서 zod/타입/요청 함수를 만든다. ' +
           '예: 사용자가 "inquiries" 라고 하면 search_openapi("inquiries") 로 ' +
           '`/api/admin/inquiries` 같은 실제 경로를 찾아낸다. ' +
+          '스펙은 캐시(최대 1시간)라 서버가 방금 바꿨으면 오래됐을 수 있다 — ' +
+          'search_openapi/get_openapi_endpoint 는 못 찾으면 자동으로 한 번 최신본을 다시 받아온다. ' +
+          '사용자가 "방금 스웨거 업데이트했어/다시 읽어" 라고 하면 `refresh_openapi()` 를 먼저 호출한다. ' +
           '이미 `*.gen.ts` 가 있으면 그걸 import 해서 쓰는 것도 좋다.';
       }
     } catch {
@@ -264,6 +267,12 @@ async function runOnce({ cfg, resolved, system, prompt }) {
     effective: cfg.effective,
     openapiSource: cfg.effective.api?.openapi ?? null,
     onEvent: (ev) => {
+      if (ev.kind === 'openapi_refreshed') {
+        console.log(
+          chalk.dim(ev.ok ? '  🔄 OpenAPI 스펙 새로고침' : '  ⚠️  OpenAPI 새로고침 실패'),
+        );
+        return;
+      }
       const label =
         ev.kind === 'write_created'
           ? '🆕'
@@ -489,6 +498,12 @@ async function runReadlineFallback({ cfg, resolved, system, session, openapiInfo
       effective: cfg.effective,
       openapiSource: cfg.effective.api?.openapi ?? null,
       onEvent: (ev) => {
+        if (ev.kind === 'openapi_refreshed') {
+          console.log(
+            chalk.dim(ev.ok ? '\n  🔄 OpenAPI 스펙 새로고침' : '\n  ⚠️  OpenAPI 새로고침 실패'),
+          );
+          return;
+        }
         const label =
           ev.kind === 'write_created'
             ? '🆕 생성'

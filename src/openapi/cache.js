@@ -23,8 +23,13 @@ function keyFor(input) {
  *
  * - 네트워크 실패 시: 만료된 캐시라도 있으면 그걸로 폴백 (offline-friendly).
  * - 캐시는 .bc/cache/openapi-<hash>.json 에 저장.
+ *
+ * @param {string} input  OpenAPI URL 또는 파일 경로
+ * @param {object} [opts]
+ * @param {boolean} [opts.force]  true 면 TTL 무시하고 무조건 live refetch (캐시 갱신).
+ *                                서버가 세션 도중 스펙을 바꿨을 때 사용.
  */
-export async function getCachedOpenApi(input) {
+export async function getCachedOpenApi(input, { force = false } = {}) {
   const dir = await getCacheDir();
   const file = path.join(dir, `openapi-${keyFor(input)}.json`);
 
@@ -39,7 +44,7 @@ export async function getCachedOpenApi(input) {
     /* miss */
   }
 
-  if (cachedFresh && cached) {
+  if (!force && cachedFresh && cached) {
     return { doc: cached, cached: true, source: input };
   }
 
