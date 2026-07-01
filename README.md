@@ -183,7 +183,7 @@ FE 전반의 규칙(폴더 구조, 네이밍, 스웨거 → 코드 변환 규칙
 | Next.js | `src/lib/api/api-codegen.md` |
 
 - 이 파일은 `bc.config.json` 의 `docs` 에 자동 등록되어 **chat 시작 시 주입**됩니다.
-- React는 axios 기준 문서, Next.js는 fetch 및 Server/Client 경계 전용 문서가 설치됩니다.
+- 하나의 문서에 React의 axios 규칙과 Next.js의 fetch 및 Server/Client 경계 규칙이 함께 들어갑니다.
 - 이미 파일이 있으면 덮어쓰지 않습니다.
 
 ### OpenAPI / 코드 컨텍스트 — 자동 주입 (v1.4+)
