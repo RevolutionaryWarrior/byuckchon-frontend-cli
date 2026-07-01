@@ -26,7 +26,7 @@ export async function createProject(config) {
   await createPackageJson(rootDir, config);
   await createBaseFiles(rootDir, config);
   await createReadme(rootDir, config);
-  // API 코드 컨벤션 .md 를 프레임워크에 맞는 API 루트(src/api | lib/api)에 깐다.
+  // API 코드 컨벤션 .md 를 프레임워크에 맞는 API 루트(src/api | src/lib/api)에 깐다.
   await scaffoldApiConventionDoc({ projectRoot: rootDir, framework: config.framework });
   await createBcConfig(rootDir, config);
 

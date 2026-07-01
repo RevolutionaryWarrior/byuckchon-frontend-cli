@@ -180,10 +180,10 @@ FE 전반의 규칙(폴더 구조, 네이밍, 스웨거 → 코드 변환 규칙
 | 프레임워크 | 위치 |
 | --- | --- |
 | React (Vite/CRA 등) | `src/api/api-codegen.md` |
-| Next.js | `lib/api/api-codegen.md` |
+| Next.js | `src/lib/api/api-codegen.md` |
 
 - 이 파일은 `bc.config.json` 의 `docs` 에 자동 등록되어 **chat 시작 시 주입**됩니다.
-- 하나의 .md 로 React/Next 를 모두 다루며(차이는 위치뿐), 팀 규칙에 맞게 직접 다듬어 쓰면 됩니다.
+- 하나의 문서에 React의 axios 규칙과 Next.js의 fetch 및 Server/Client 경계 규칙이 함께 들어갑니다.
 - 이미 파일이 있으면 덮어쓰지 않습니다.
 
 ### OpenAPI / 코드 컨텍스트 — 자동 주입 (v1.4+)

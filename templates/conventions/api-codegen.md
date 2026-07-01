@@ -4,7 +4,8 @@
 > 사용자가 Swagger JSON(또는 엔드포인트)을 제공하면, AI 는 이 문서의 규칙에 맞춰
 > `api / zod / type / service / index` 파일을 생성한다.
 >
-> 스택: `@tanstack/react-query` + `axios`. **React / Next.js 공용**이며, 차이는 §0 의 "위치"뿐이다.
+> 대상: React(Vite/CRA 등), Next.js App Router
+> 스택: `@tanstack/react-query` + React는 `axios`, Next.js는 native `fetch`.
 
 ---
 
@@ -16,30 +17,25 @@
 2. **기존 코드 우선.** 공용 유틸(`cacheConfig`, `queryKey`, `captureSentryError`, `metaSchema`,
    `PaginationParams` 등)은 새로 만들지 말고 그대로 가져다 쓴다. import 경로가 확실치 않으면
    `search_code` 로 실제 export 위치를 확인한다.
-3. **5파일 세트는 항상 함께.** `api / zod / type / service / index` 를 한 번에 생성한다.
+3. **계약 파일은 항상 함께.** React는 `api / zod / type / service / index`를 한 번에 생성한다.
+   Next.js는 공용 `zod / type`, 서버 기본 호출 파일, 필요한 경우 Client 호출 파일과 service를 생성한다.
+   이미 같은 리소스가 있으면 기존 파일 구성과 이름을 우선한다.
 
 ---
 
-## 0. 위치 & 폴더 구조 ⚠️ (React vs Next 차이는 여기뿐)
+## 0. 위치 & 폴더 구조
 
-API 코드의 **루트 위치는 프레임워크마다 다르다.**
-
-| 프레임워크 | API 루트 |
-| --- | --- |
-| **React** (Vite/CRA 등) | `src/api` |
-| **Next.js** | `lib/api` |
-
-> 그 외 폴더/파일 구조와 규칙은 **완전히 동일**하다. 아래 예시는 `src/api` 기준이며,
-> Next 면 `src/api` 를 `lib/api` 로 바꿔 읽으면 된다.
+API 루트는 React에서 `src/api`, Next.js에서 `src/lib/api`다.
 
 리소스(도메인) 하나당 폴더 하나. 폴더명은 **소문자**(여러 단어는 kebab-case: `favorite-stores`).
 
 ```
-src/api/                      # (Next: lib/api/)
-├── instance.ts               # axios 인스턴스 (interceptor 포함)
+src/api/                      # Next.js: src/lib/api/
+├── instance.ts               # React: axios 인스턴스
 ├── index.ts                  # 모든 API 모듈 export
 └── user/                     # 리소스 폴더 (소문자)
-    ├── user.api.ts           # axios 호출 함수 (순수 함수)
+    ├── user.api.ts           # React: axios / Next.js: Server fetch 호출
+    ├── user.api.client.ts    # Next.js: Client 호출이 필요할 때만 생성
     ├── user.zod.ts           # 응답/요청 zod 스키마
     ├── user.type.ts          # zod 로부터 추론한 타입 + 입력 타입
     ├── user.service.ts       # react-query 훅 (use~) — 비즈니스 로직
@@ -48,6 +44,67 @@ src/api/                      # (Next: lib/api/)
 
 - 파일 prefix 는 폴더명과 같다 (`user/` → `user.api.ts`, `user.zod.ts` ...).
 - `RESOURCE` 상수는 `/api/<path>` 형태로 `.api.ts` 상단에 둔다.
+
+---
+
+## Next.js 전용 규칙 — Server/Client 경계
+
+> 이 섹션의 **Next.js**는 프레임워크다. 문서의 **next(무한스크롤)**와는 관련이 없다.
+
+Next.js App Router는 API 코드를 생성하기 전에 실행 환경을 분류한다.
+
+| 환경 | 사용처 | 허용 의존성 |
+| --- | --- | --- |
+| Server | Server Component, Route Handler, Server Action | `cookies`, `headers`, 서버 토큰, `serverAuthHttp` |
+| Client | `'use client'`, React Query hook | 브라우저 API, `clientAuthHttp` |
+| 공용 | type, 순수 zod schema, 직렬화 가능한 상수 | 서버/브라우저 전용 의존성 없음 |
+
+### 공용 barrel에서 Server 모듈을 내보내지 않는다
+
+Client Component가 공용 `index.ts`를 가져올 때 그 barrel이 Server 모듈까지 export하면 다음 오류가 발생할 수 있다.
+
+```text
+This module cannot be imported from a Client Component module.
+It should only be used from a Server Component.
+```
+
+```ts
+// src/lib/api/http/index.ts
+export * from './httpBase';
+export * from './publicHttp';
+export * from './clientAuthHttp';
+// 금지: export * from './serverAuthHttp';
+```
+
+`serverAuthHttp`와 Server API는 barrel을 거치지 않고 절대경로로 직접 import한다.
+
+```ts
+import { serverAuthHttp } from '@/lib/api/http/serverAuthHttp';
+```
+
+- Server 파일은 가능하면 `import 'server-only';`로 경계를 표시한다.
+- 인증 호출은 Server를 기본으로 하고 Client에서도 호출해야 할 때만 `*.client.ts`를 만든다.
+- Client service는 Client 호출 파일만 import하며 Server 파일을 간접 참조하지 않는다.
+- `useQuery`/`useMutation`을 export하는 service는 Client 전용이다.
+- type과 zod schema만 Server/Client가 공유한다.
+
+### HTTP와 인증 컨텍스트를 분리한다
+
+- `serverAuthHttp`: 서버 쿠키·헤더·비공개 토큰 사용. 공용 barrel export 금지.
+- `clientAuthHttp`: 브라우저에 노출 가능한 인증 상태만 사용.
+- `publicHttp`: 양쪽에서 안전할 때만 공용 사용.
+- 기존 fetch wrapper를 먼저 찾는다. 없으면 자동 생성하지 말고 fetch/auth 방식을 사용자에게 묻는다.
+- `cookies()`/`headers()`는 모듈 최상위가 아니라 요청 함수 내부에서 호출한다.
+- 서버 비밀값에 `NEXT_PUBLIC_`을 붙이지 않는다.
+- 기존 Route Handler/BFF, base URL, CORS, Edge Runtime 정책을 확인하고 재사용한다.
+
+### 캐시와 전달 값을 구분한다
+
+- React Query 무효화는 Client 캐시만 갱신한다.
+- Next.js의 `fetch` cache/`next`, `revalidatePath`/`revalidateTag`, Cache Components는 기존 정책을 따른다.
+- 사용자별 인증 응답을 전역 캐시하지 않는다.
+- Server에서 Client로 응답 wrapper, `Headers`, `Error`, 함수 등을 전달하지 않고 JSON 직렬화 가능한 data만 전달한다.
+- Server Action은 요청받았거나 기존 프로젝트가 같은 패턴을 사용할 때만 만든다.
 
 ---
 
@@ -76,13 +133,17 @@ src/api/                      # (Next: lib/api/)
 
 ### 2-1. `user.api.ts` — 순수 호출 함수
 
-- `import baseInstance from '../instance';` 사용 (axios 인스턴스).
-- 함수는 `async`, 내부에서 `const { data } = await baseInstance.X(...)` 후 `return data;`.
-- 응답 본문이 없는 경우(`204 No Content`) 는 `return data` 생략 가능.
-- 쿼리스트링은 `{ params }`, path 파라미터는 템플릿 리터럴.
+- React는 `baseInstance`(axios)를 사용한다.
+- Next.js는 Server 파일에서 기존 `serverAuthHttp`를 절대경로로 import한다. Client 호출이 필요할 때만
+  `*.client.ts`를 만들고 기존 `clientAuthHttp`를 사용한다. wrapper가 없으면 자동 생성하지 않는다.
+- React는 `const { data } = await baseInstance.X(...)` 후 `data`를 반환한다.
+- Next.js는 fetch wrapper의 generic에 응답 타입을 전달하고 JSON data를 반환받는다.
+- 쿼리스트링은 기존 wrapper 규칙(axios의 `{ params }`, fetch wrapper의 `searchParams` 등)을 따른다.
+  path 파라미터는 템플릿 리터럴을 사용한다.
 - **여기서는 zod 파싱을 하지 않는다.** (파싱은 service 의 queryFn 책임)
 
 ```ts
+// React
 import baseInstance from '../instance';
 
 const RESOURCE = '/api/user';
@@ -103,6 +164,18 @@ export const deleteUser = async (userId: string) => {
   const { data } = await baseInstance.delete(`${RESOURCE}/${userId}`);
 
   return data;
+};
+```
+
+```ts
+// Next.js Server
+import { serverAuthHttp } from '@/lib/api/http/serverAuthHttp';
+import type { UserItem } from './user.type';
+
+const RESOURCE = '/api/user';
+
+export const getUser = async (userId: string) => {
+  return serverAuthHttp<UserItem>(`${RESOURCE}/${userId}`);
 };
 ```
 
@@ -213,6 +286,7 @@ export const useDeleteUser = () => {
 ### 2-5. `index.ts` (리소스) — 노출
 
 - **`service` 와 `type` 만** 재노출 (`api`, `zod` 는 노출하지 않음).
+- Next.js에서는 Server 호출 파일을 Client가 접근 가능한 barrel에서 재노출하지 않는다.
 
 ```ts
 export * from './user.service';
@@ -230,6 +304,7 @@ export * from './user';
 
 ### 2-7. `src/api/instance.ts` — axios 인스턴스
 
+- React 전용 규칙이다.
 - 이미 있으면 **건드리지 않는다.** baseURL/interceptor 설정이 여기 모여 있다.
 - 새 리소스는 항상 이 `baseInstance` 를 import 해서 쓴다.
 
@@ -374,7 +449,7 @@ export const useGetUser = (options?: Record<string, any>) => {
 
 ## 7. 생성 시 체크리스트 ✅
 
-1. [ ] 위치를 맞췄다 (React `src/api` / Next `lib/api`).
+1. [ ] 위치를 맞췄다 (React `src/api` / Next.js `src/lib/api`).
 2. [ ] 엔드포인트가 **next(무한스크롤)** 인지 판단했다. (§1)
 3. [ ] `api / zod / type / service / index` 5파일을 모두 만들었다.
 4. [ ] Swagger 응답을 zod 로 정확히 매핑(nullable/optional/enum/date/$ref).
@@ -385,6 +460,8 @@ export const useGetUser = (options?: Record<string, any>) => {
 9. [ ] 리소스 `index.ts` + 루트 `index.ts` 노출 추가.
 10. [ ] next 면 `useInfiniteQuery` + `metaSchema` + `select` 평탄화 적용.
 11. [ ] 공용 유틸을 재사용하고, Swagger 에 없는 필드를 추측으로 만들지 않았다.
+12. [ ] Next.js면 Server/Client 환경을 분류하고 Server 모듈을 공용 barrel에서 내보내지 않았다.
+13. [ ] Next.js면 기존 fetch/auth wrapper와 캐시·runtime 정책을 확인했다.
 
 ---
 
@@ -397,4 +474,5 @@ export const useGetUser = (options?: Record<string, any>) => {
 - ❌ Swagger 의 `nullable` 무시하고 필수로 선언.
 - ❌ 일반 목록인데 `useInfiniteQuery` 사용 (또는 그 반대).
 - ❌ 공용 타입/유틸(`metaSchema`, `PaginationParams`)을 중복 재정의.
-- ❌ React 인데 `lib/api`, Next 인데 `src/api` 에 만드는 위치 실수.
+- ❌ React와 Next.js의 API 루트 또는 axios/fetch 규칙을 혼용.
+- ❌ Next.js 공용 `index.ts`에서 Server 전용 API나 `serverAuthHttp`를 export.
