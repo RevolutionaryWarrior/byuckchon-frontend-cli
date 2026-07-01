@@ -16,6 +16,7 @@ import { searchIndex } from '../indexer/search.js';
 import { loadIndex, buildIndex } from '../indexer/store.js';
 import { listSessions } from '../history/store.js';
 import { findLastRetryableUser } from '../history/management.js';
+import { updateProjectLink } from '../config/projectLinks.js';
 
 const h = React.createElement;
 
@@ -292,6 +293,8 @@ const SLASH_COMMANDS = [
   { cmd: '/history', hint: '', desc: '프로젝트의 이전 대화 목록' },
   { cmd: '/retry', hint: '', desc: '마지막 사용자 요청 다시 실행' },
   { cmd: '/model', hint: '<id>', desc: '세션 모델 변경 (인자 없으면 목록)' },
+  { cmd: '/figma-link', hint: '<url|off>', desc: '프로젝트 Figma 링크 변경/해제' },
+  { cmd: '/openapi-link', hint: '<url|off>', desc: '프로젝트 OpenAPI 링크 변경/해제' },
   { cmd: '/cost', hint: '', desc: '누적 토큰/비용' },
   { cmd: '/image', hint: '<path>', desc: '이미지 첨부 (Finder 에서 끌어다 놔도 됨)' },
   { cmd: '/paste', hint: '', desc: '클립보드의 이미지(스크린샷)를 첨부 — macOS' },
@@ -422,6 +425,7 @@ export function ChatApp({
   const [indexProgress, setIndexProgress] = useState('');
   const [ragEnabled, setRagEnabled] = useState(true);
   const [menuIndex, setMenuIndex] = useState(0);
+  const [inputRevision, setInputRevision] = useState(0);
   const [historyItems, setHistoryItems] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const [historyDeleteId, setHistoryDeleteId] = useState(null);
@@ -437,6 +441,16 @@ export function ChatApp({
   useEffect(() => {
     setMenuIndex(0);
   }, [input]);
+
+  // showCursor=false인 ink-text-input은 외부에서 value가 바뀌어도 내부 cursorOffset을
+  // 갱신하지 않는다. 자동완성/초기화 때 재마운트해 커서를 새 문자열 끝으로 맞춘다.
+  const replaceInput = useCallback((value) => {
+    setInput(value);
+    setInputRevision((revision) => revision + 1);
+  }, []);
+  const completeSlash = useCallback((item) => {
+    replaceInput(expandSlash(item));
+  }, [replaceInput]);
 
   // 인덱스 빌드 헬퍼 — 자동/수동 양쪽에서 공유.
   const runIndexBuild = useCallback(
@@ -587,13 +601,13 @@ export function ChatApp({
       return;
     }
     if (key.escape) {
-      setInput('');
+      replaceInput('');
       return;
     }
     // Tab 자동완성 — ink-text-input 이 Tab 을 자체 처리하지 않아 충돌 없음.
     if (key.tab) {
       const sel = slashItems[Math.min(menuIndex, slashItems.length - 1)];
-      if (sel) setInput(expandSlash(sel));
+      if (sel) completeSlash(sel);
       return;
     }
   });
@@ -671,6 +685,27 @@ export function ChatApp({
         setCfg(nextCfg);
         setResolved(nextResolved);
         pushSystemInfo('세션 모델을 ' + nextResolved.meta.label + ' 로 변경했습니다.');
+      } catch (err) {
+        pushSystemError(err.message);
+      }
+      return true;
+    }
+    if (cmd === 'figma-link' || cmd === 'openapi-link') {
+      const kind = cmd === 'figma-link' ? 'figma' : 'openapi';
+      if (!arg) {
+        const current = kind === 'figma' ? cfg.effective.design?.figma : cfg.effective.api?.openapi;
+        pushSystemInfo(`현재 ${kind === 'figma' ? 'Figma' : 'OpenAPI'}: ${current ?? '(미설정)'}\n사용법: /${cmd} <url|off>`);
+        return true;
+      }
+      try {
+        const nextCfg = await updateProjectLink(cfg, kind, arg);
+        const label = kind === 'figma' ? 'Figma' : 'OpenAPI';
+        const value = kind === 'figma' ? nextCfg.effective.design?.figma : nextCfg.effective.api?.openapi;
+        const sessionRule = value
+          ? `\n\n[프로젝트 설정 변경] ${label} 소스는 ${value} 이다. 이전 ${label} 링크와 요약은 무시하고 이 값을 사용하라.`
+          : `\n\n[프로젝트 설정 변경] ${label} 링크가 해제되었다. 이전 ${label} 링크와 요약은 사용하지 마라.`;
+        setCfg({ ...nextCfg, system: cfg.system + sessionRule });
+        pushSystemInfo(`${label} 링크를 ${value ? '변경했습니다: ' + value : '해제했습니다.'}`);
       } catch (err) {
         pushSystemError(err.message);
       }
@@ -1006,25 +1041,28 @@ export function ChatApp({
 
   const onSubmit = async (raw) => {
     const line = raw.trim();
+    const exactCommand = SLASH_COMMANDS.find((item) => item.cmd === line);
 
-    // 슬래시 메뉴가 열려 있으면 Enter 의 의미가 두 갈래:
-    //   1) input 이 메뉴의 아이템 cmd 와 정확히 일치 + 인자 필요 없는 명령 → 즉시 실행
-    //   2) 그 외 → 선택 항목으로 자동완성만 (실행은 Enter 한 번 더)
-    if (slashOpen) {
-      const sel = slashItems[Math.min(menuIndex, slashItems.length - 1)];
-      const exact = slashItems.find((it) => it.cmd === line);
-      if (exact && !exact.hint) {
-        // 정확히 매칭 + 인자 불필요 → 바로 실행
-        setInput('');
-        await handleSlash(exact.cmd);
-        return;
-      }
-      // 자동완성만 하고 멈춤 — 사용자가 인자를 더 칠 수 있게.
-      if (sel) setInput(expandSlash(sel));
+    // 인자가 없는 명령은 메뉴 선택 상태와 관계없이 정확히 일치하면 즉시 실행한다.
+    if (exactCommand && !exactCommand.hint) {
+      replaceInput('');
+      await handleSlash(exactCommand.cmd);
       return;
     }
 
-    setInput('');
+    // 메뉴에서 선택한 명령도 인자가 없으면 즉시 실행하고, 인자가 필요할 때만 자동완성한다.
+    if (slashOpen) {
+      const sel = slashItems[Math.min(menuIndex, slashItems.length - 1)];
+      if (sel && !sel.hint) {
+        replaceInput('');
+        await handleSlash(sel.cmd);
+        return;
+      }
+      if (sel) completeSlash(sel);
+      return;
+    }
+
+    replaceInput('');
     if (!line) return;
 
     if (line.startsWith('/')) {
@@ -1077,6 +1115,7 @@ export function ChatApp({
       h(Text, { color: 'magenta', bold: true }, 'you › '),
       state === 'idle' && !historyOpen
         ? h(TextInput, {
+            key: inputRevision,
             value: input,
             onChange: setInput,
             onSubmit,

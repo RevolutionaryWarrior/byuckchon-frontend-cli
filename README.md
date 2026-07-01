@@ -104,8 +104,8 @@ bc init
 # 1) Figma → Settings → Personal access tokens → "Generate new token"
 #    Read 권한만 있으면 충분 (file 읽기 / image export 둘 다 read 로 됨)
 
-# 2) 토큰을 .env 에 박기 (gitignore 됨)
-echo "FIGMA_TOKEN=figd_xxxxxxxxxxxxxxxx" >> .env
+# 2) bc init이 만든 .env의 FIGMA_TOKEN 값 채우기 (gitignore 됨)
+FIGMA_TOKEN=figd_xxxxxxxxxxxxxxxx
 
 # 3) bc.config.json 의 design.figma 에 파일/노드 URL 박기 (bc adopt 시점에 입력하거나 직접 편집)
 ```
@@ -291,6 +291,8 @@ TTY 안에서 자동으로 ink 모드로 뜨고, 파이프/CI 같은 비-TTY 환
 | `/history`          | 이전 대화 선택 후 해당 컨텍스트 이어가기     |
 | `/retry`            | 마지막 사용자 요청 다시 실행                |
 | `/model [id]`       | 세션 모델 변경 (인자 없으면 목록)           |
+| `/figma-link <url\|off>` | 프로젝트 Figma 링크 변경 또는 해제       |
+| `/openapi-link <url\|off>` | 프로젝트 OpenAPI 링크 변경 또는 해제    |
 | `/cost`             | 누적 토큰/비용                              |
 | `/image <path>`     | 다음 메시지에 이미지 첨부 (Vision 모델 권장) |
 | `/paste`            | 클립보드 이미지 첨부 (macOS, `pngpaste` 필요) |
