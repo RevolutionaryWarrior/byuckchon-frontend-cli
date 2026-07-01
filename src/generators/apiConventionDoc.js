@@ -9,15 +9,15 @@ const TEMPLATE_PATH = path.resolve(
 
 /**
  * 프레임워크에 맞는 API 루트 폴더.
- * - Next.js → lib/api
+ * - Next.js → src/lib/api
  * - 그 외 React 계열 → src/api
  */
 export function apiRootForFramework(framework) {
-  return framework === 'next' ? 'lib/api' : 'src/api';
+  return framework === 'next' ? 'src/lib/api' : 'src/api';
 }
 
 /**
- * API 코드 컨벤션 .md 를 프로젝트의 API 루트(`src/api` 또는 `lib/api`)에 깐다.
+ * API 코드 컨벤션 .md 를 프로젝트의 API 루트(`src/api` 또는 `src/lib/api`)에 깐다.
  *
  * @param {object} args
  * @param {string} args.projectRoot

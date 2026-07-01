@@ -180,10 +180,10 @@ FE 전반의 규칙(폴더 구조, 네이밍, 스웨거 → 코드 변환 규칙
 | 프레임워크 | 위치 |
 | --- | --- |
 | React (Vite/CRA 등) | `src/api/api-codegen.md` |
-| Next.js | `lib/api/api-codegen.md` |
+| Next.js | `src/lib/api/api-codegen.md` |
 
 - 이 파일은 `bc.config.json` 의 `docs` 에 자동 등록되어 **chat 시작 시 주입**됩니다.
-- 하나의 .md 로 React/Next 를 모두 다루며(차이는 위치뿐), 팀 규칙에 맞게 직접 다듬어 쓰면 됩니다.
+- 하나의 문서에 React의 axios 규칙과 Next.js의 fetch 및 Server/Client 경계 규칙이 함께 들어갑니다.
 - 이미 파일이 있으면 덮어쓰지 않습니다.
 
 ### OpenAPI / 코드 컨텍스트 — 자동 주입 (v1.4+)
@@ -193,6 +193,10 @@ FE 전반의 규칙(폴더 구조, 네이밍, 스웨거 → 코드 변환 규칙
 
 - **OpenAPI**: chat 시작 시 자동 fetch + 1시간 디스크 캐시 → 엔드포인트 요약을 시스템 프롬프트에 박음.
   - 헤더에 `openapi` 줄로 표시. 캐시 hit 면 `(cached)`, fresh fetch 면 `(live)`.
+  - **세션 중 서버가 스펙을 바꿔도 자동 대응 (v1.10+)**: `search_openapi` / `get_openapi_endpoint` 가
+    캐시에서 엔드포인트를 못 찾으면 **딱 한 번 최신본을 다시 받아 재검색**합니다 (`🔄 OpenAPI 스펙 새로고침`).
+    남용 방지를 위해 세션당 횟수·간격이 제한됩니다. "방금 스웨거 업데이트했어, 다시 읽어줘" 라고 하면
+    즉시 강제 새로고침(`refresh_openapi`)합니다.
 - **코드 인덱스**: chat 시작 시 인덱스 파일이 없으면 **백그라운드에서 자동 빌드**.
   - 빌드 중에는 화면에 `📚 인덱싱 중 ...` 진행 표시. 끝나면 `✓` 메시지 한 줄.
   - OpenAI 키가 없으면 빌드를 건너뛰고 도움 메시지를 띄움 (Anthropic 은 임베딩 API 미제공).

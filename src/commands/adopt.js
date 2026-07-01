@@ -145,7 +145,7 @@ export async function adoptCommand(opts = {}) {
   console.log(chalk.green(`\n  ✓ ${CONFIG_PATHS.projectFileName} 작성 완료.`));
   console.log(chalk.dim(`    ${targetFile}`));
 
-  // API 코드 컨벤션 .md 를 API 루트(src/api | lib/api)에 깐다 (이미 있으면 유지).
+  // API 코드 컨벤션 .md 를 API 루트(src/api | src/lib/api)에 깐다 (이미 있으면 유지).
   try {
     const { relPath, written } = await scaffoldApiConventionDoc({
       projectRoot: cwd,
