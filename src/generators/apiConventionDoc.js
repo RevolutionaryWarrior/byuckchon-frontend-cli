@@ -2,9 +2,9 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const TEMPLATE_DIR = path.resolve(
+const TEMPLATE_PATH = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
-  '../../templates/conventions',
+  '../../templates/conventions/api-codegen.md',
 );
 
 /**
@@ -42,8 +42,7 @@ export async function scaffoldApiConventionDoc({ projectRoot, framework, force =
     return { relPath, written: false };
   }
 
-  const templateName = framework === 'next' ? 'api-codegen-next.md' : 'api-codegen.md';
-  const template = await fs.readFile(path.join(TEMPLATE_DIR, templateName), 'utf8');
+  const template = await fs.readFile(TEMPLATE_PATH, 'utf8');
   await fs.mkdir(path.dirname(absPath), { recursive: true });
   await fs.writeFile(absPath, template, 'utf8');
   return { relPath, written: true };
