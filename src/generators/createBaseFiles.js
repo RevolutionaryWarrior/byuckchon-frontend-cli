@@ -233,6 +233,9 @@ node_modules
 dist
 dist-ssr
 *.local
+*.md
+!README.md
+.bc/
 .env
 .env.production
 .history
@@ -704,6 +707,8 @@ declare module '*.webp' {
 // ─── 진입점 ───────────────────────────────────────────────────────────────────
 
 export async function createBaseFiles(rootDir, config) {
+  await write(path.join(rootDir, ".env"), "FIGMA_TOKEN=\n");
+
   if (config.framework === "react") {
     await createReactBaseFiles(rootDir, config);
   } else if (config.framework === "next") {

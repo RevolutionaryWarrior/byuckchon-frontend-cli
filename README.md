@@ -104,8 +104,8 @@ bc init
 # 1) Figma → Settings → Personal access tokens → "Generate new token"
 #    Read 권한만 있으면 충분 (file 읽기 / image export 둘 다 read 로 됨)
 
-# 2) 토큰을 .env 에 박기 (gitignore 됨)
-echo "FIGMA_TOKEN=figd_xxxxxxxxxxxxxxxx" >> .env
+# 2) bc init이 만든 .env의 FIGMA_TOKEN 값 채우기 (gitignore 됨)
+FIGMA_TOKEN=figd_xxxxxxxxxxxxxxxx
 
 # 3) bc.config.json 의 design.figma 에 파일/노드 URL 박기 (bc adopt 시점에 입력하거나 직접 편집)
 ```
