@@ -250,8 +250,9 @@ bc adopt
 ```
 
 `package.json` 과 디렉터리를 스캔해서 **프레임워크/언어/스타일/라우팅/패키지 매니저** 를 자동 감지하고,
-Figma·OpenAPI URL 만 추가로 묻고 `bc.config.json` 만 떨궈줍니다.
-**소스 코드는 절대 건드리지 않습니다.**
+Figma·OpenAPI URL 만 추가로 묻고 `bc.config.json` 을 생성합니다.
+필수 의존성(`@tanstack/react-query`, `zod`, React 계열의 `axios`)이 없으면 감지한 패키지 매니저로
+자동 설치하며, 기존 소스 코드는 건드리지 않습니다.
 
 지원 감지: Next.js · Expo · Electron · Vite+React · Remix · CRA · 일반 React.
 
