@@ -11,12 +11,13 @@ import {
   apiRootForFramework,
   scaffoldApiConventionDoc,
 } from '../generators/apiConventionDoc.js';
+import { ensureRequiredDependencies } from '../utils/ensureRequiredDependencies.js';
 
 /**
  * `bc adopt`
  *
- * 기존 프로젝트(현재 디렉터리)에 bc.config.json 만 살포시 깔아준다.
- * 소스 코드는 절대 건드리지 않는다.
+ * 기존 프로젝트(현재 디렉터리)에 bc.config.json 과 필수 의존성을 추가한다.
+ * 기존 소스 코드는 건드리지 않는다.
  *
  * 흐름:
  *   1) 자동 감지(framework, styling, language, routing 등) 결과를 보여주고
@@ -144,6 +145,22 @@ export async function adoptCommand(opts = {}) {
 
   console.log(chalk.green(`\n  ✓ ${CONFIG_PATHS.projectFileName} 작성 완료.`));
   console.log(chalk.dim(`    ${targetFile}`));
+
+  const dependencies = await ensureRequiredDependencies({
+    cwd,
+    pkg: ctx.pkg,
+    framework: ctx.framework,
+    packageManager: ctx.packageManager,
+  });
+  if (dependencies.installed.length) {
+    console.log(
+      chalk.green(
+        `  ✓ 필수 의존성 설치 완료 (${dependencies.packageManager}): ${dependencies.installed.join(', ')}`,
+      ),
+    );
+  } else {
+    console.log(chalk.dim('  필수 의존성 유지 (이미 설치됨)'));
+  }
 
   // API 코드 컨벤션 .md 를 API 루트(src/api | src/lib/api)에 깐다 (이미 있으면 유지).
   try {

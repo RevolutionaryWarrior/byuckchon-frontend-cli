@@ -33,10 +33,10 @@ export async function createPackageJson(rootDir, config) {
       'react-dom': isReact ? versions['react-dom'] : versions['next-react-dom'],
       ...(isReact ? {} : { next: versions.next }),
       zustand: versions.zustand,
+      '@tanstack/react-query': versions['@tanstack/react-query'],
       ...(isReact
         ? {
             axios: versions.axios,
-            '@tanstack/react-query': versions['@tanstack/react-query'],
           }
         : {}),
       zod: versions.zod,
