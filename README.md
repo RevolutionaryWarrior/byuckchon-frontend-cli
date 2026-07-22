@@ -262,7 +262,7 @@ Figma·OpenAPI URL 만 추가로 묻고 `bc.config.json` 을 생성합니다.
 bc                                         # 인자 없이도 chat 진입 (제일 짧은 단축키)
 bc start                                   # chat 의 alias
 bc chat                                    # ink 풀 TUI (기본)
-bc chat --model claude-haiku-4             # 이번 세션만 모델 지정
+bc chat --model claude-fable-5             # 이번 세션만 모델 지정
 bc chat --plain                            # 단순 readline 모드
 bc chat --once "useEffect 의존성 배열 누락된 거 어떻게 찾아?"   # 1회성 호출 (CI/스크립트)
 bc chat -c                                 # 가장 최근 세션 이어가기
@@ -349,7 +349,7 @@ bc config set-ui ink
 ```bash
 bc config show                              # 현재 적용 중인 설정 확인
 bc config set-model                         # 대화형 모델 선택
-bc config set-model claude-sonnet-4-5       # 직접 지정
+bc config set-model claude-sonnet-5         # 직접 지정
 bc config set-key anthropic                 # 키 안전 입력 (가려짐)
 bc config set-key anthropic sk-ant-...      # 직접 지정
 bc config set-gateway https://ai.example.com  # 사내 게이트웨이 모드
@@ -372,9 +372,10 @@ bc config set-ui ink                        # 풀 TUI 복귀
 
 | id                  | provider  | 추천 용도                          |
 | ------------------- | --------- | ---------------------------------- |
-| `claude-sonnet-4-5` | anthropic | 기본 — 코드 Q&A, 리팩터, 컴포넌트   |
-| `claude-haiku-4`    | anthropic | 짧은 작업, 커밋 메시지 (저렴)       |
-| `claude-opus-4-5`   | anthropic | 큰 리팩터, 아키텍처 설계 (고가)     |
+| `claude-sonnet-5`   | anthropic | 기본 — 코드 Q&A, 리팩터, 컴포넌트   |
+| `claude-sonnet-4-6` | anthropic | 안정 — 이전 세대 밸런스             |
+| `claude-opus-4-8`   | anthropic | 큰 리팩터, 아키텍처 설계 (고가)     |
+| `claude-fable-5`    | anthropic | 짧은 작업, 커밋 메시지 (저렴·빠름)  |
 | `gpt-5`             | openai    | 일반 코드                          |
 | `gpt-5-mini`        | openai    | 저렴한 OpenAI                      |
 

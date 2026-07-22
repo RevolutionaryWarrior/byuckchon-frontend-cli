@@ -9,31 +9,40 @@
  */
 export const MODEL_CATALOG = [
   {
-    id: 'claude-sonnet-4-5',
-    label: 'Claude Sonnet 4.5  (권장 · 코드 품질·속도 밸런스)',
+    id: 'claude-sonnet-5',
+    label: 'Claude Sonnet 5  (권장 · 코드 품질·속도 밸런스)',
     provider: 'anthropic',
-    apiModel: 'claude-sonnet-4-5',
+    apiModel: 'claude-sonnet-5',
     contextWindow: 200_000,
     pricing: { input: 3, output: 15, cachedInput: 0.3 },
     tier: 'balanced',
   },
   {
-    id: 'claude-haiku-4',
-    label: 'Claude Haiku 4  (저렴 · 짧은 작업·커밋 메시지)',
+    id: 'claude-sonnet-4-6',
+    label: 'Claude Sonnet 4.6  (안정 · 이전 세대 밸런스)',
     provider: 'anthropic',
-    apiModel: 'claude-haiku-4',
+    apiModel: 'claude-sonnet-4-6',
     contextWindow: 200_000,
-    pricing: { input: 0.8, output: 4, cachedInput: 0.08 },
-    tier: 'fast',
+    pricing: { input: 3, output: 15, cachedInput: 0.3 },
+    tier: 'balanced',
   },
   {
-    id: 'claude-opus-4-5',
-    label: 'Claude Opus 4.5  (고성능 · 큰 리팩터·아키텍처)',
+    id: 'claude-opus-4-8',
+    label: 'Claude Opus 4.8  (고성능 · 큰 리팩터·아키텍처)',
     provider: 'anthropic',
-    apiModel: 'claude-opus-4-5',
+    apiModel: 'claude-opus-4-8',
     contextWindow: 200_000,
     pricing: { input: 15, output: 75, cachedInput: 1.5 },
     tier: 'powerful',
+  },
+  {
+    id: 'claude-fable-5',
+    label: 'Claude Fable 5  (저렴·빠름 · 짧은 작업·커밋 메시지)',
+    provider: 'anthropic',
+    apiModel: 'claude-fable-5',
+    contextWindow: 200_000,
+    pricing: { input: 1, output: 5, cachedInput: 0.1 },
+    tier: 'fast',
   },
   {
     id: 'gpt-5',
@@ -55,7 +64,7 @@ export const MODEL_CATALOG = [
   },
 ];
 
-export const DEFAULT_MODEL_ID = 'claude-sonnet-4-5';
+export const DEFAULT_MODEL_ID = 'claude-sonnet-5';
 
 export function findModel(id) {
   return MODEL_CATALOG.find((m) => m.id === id);

@@ -4,6 +4,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 
 import { initCommand } from '../src/commands/init.js';
+import { addCommand } from '../src/commands/add.js';
 import { chatCommand } from '../src/commands/chat.js';
 import { adoptCommand } from '../src/commands/adopt.js';
 import {
@@ -32,9 +33,16 @@ program
 
 program
   .command('init')
-  .description('새 프론트엔드 프로젝트 생성 (React/Next.js)')
+  .description('새 프론트엔드 프로젝트 생성 (단일 React/Next 또는 pnpm 모노레포)')
   .action(async () => {
     await initCommand();
+  });
+
+program
+  .command('add')
+  .description('기존 pnpm 모노레포에 React/Next 앱 추가 (apps/ 아래)')
+  .action(async () => {
+    await addCommand();
   });
 
 program
