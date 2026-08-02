@@ -62,6 +62,57 @@ bc init
 프로젝트 이름, 프레임워크, **기본 AI 모델, Figma URL, OpenAPI URL** 을 묻고
 새 폴더에 코드 + `bc.config.json` 까지 만들어 줍니다.
 
+### ESLint Convention Review 자동 생성
+
+`bc init` 으로 만드는 **새 프로젝트**에는 PR에서 기계적으로 판별할 수 있는
+컨벤션을 리뷰 댓글로 남기는 ESLint 자동화가 함께 생성됩니다. 기존 프로젝트에서도
+`bc adopt` 를 실행하면 같은 설정을 추가합니다. `bc adopt` 는 기존 `tools/` 와 workflow를
+덮어쓰지 않고, 없는 파일만 생성합니다.
+
+```text
+<project-root>/
+├─ .github/workflows/
+│  └─ eslint-convention-review.yml
+└─ tools/
+   ├─ eslint-rules/
+   │  ├─ internal-blocking-conventions.js
+   │  ├─ internal-warning-conventions.js
+   │  ├─ internal-rdjson-formatter.js
+   │  ├─ internal-plugin.cjs
+   │  ├─ review.config.mjs
+   │  └─ package.json
+   └─ post-eslint-review-comments.cjs
+```
+
+모노레포도 위 파일들은 **루트에 한 번만** 생성됩니다. `apps/*` 와 `packages/*`
+안에는 `tools/` 나 workflow를 복사하지 않습니다.
+
+| 구분 | 담당 | 표시 위치 |
+| --- | --- | --- |
+| 일반 `lint` | 기존 ESLint 규칙 검사 | Actions 로그 annotation |
+| ESLint Convention Review | 파일명, export 방식, boolean 변수명 등 정형 규칙 | PR 인라인 댓글 |
+| AI 코드 리뷰 | 설계, 예외 처리, 비즈니스 로직처럼 문맥이 필요한 판단 | 별도 AI 리뷰 설정 |
+
+일반 `lint` script와 ESLint 기본 config에는 custom convention rule을 넣지 않습니다.
+그래야 일반 lint 결과와 PR 리뷰 댓글이 섞이지 않습니다.
+
+workflow는 `dev` 브랜치를 대상으로 하는 PR에서 실행됩니다.
+
+- 단일 프로젝트는 npm으로 custom rule을 실행합니다.
+- 모노레포는 pnpm으로 PR에서 변경된 `.ts` / `.tsx` 파일만 검사합니다.
+- `internal-blocking-conventions` 결과는 `BLOCKING`,
+  `internal-warning-conventions` 결과는 `WARNING` 댓글로 게시됩니다.
+- 댓글 본문의 숨김 marker를 사용해 같은 진단의 중복 게시를 피하고, 내용이 바뀌면
+  기존 댓글을 갱신합니다.
+
+`tools/post-eslint-review-comments.cjs`도 format 대상에 포함되도록, 생성 프로젝트의
+`format` 및 `format:check` script는 `tools/**/*.{js,cjs,json,md}`를 함께 검사합니다.
+
+> 현재 workflow는 `BLOCKING` 댓글을 게시하지만, ESLint 오류 자체를 workflow 실패로
+> 처리하지는 않습니다. GitHub status check까지 merge 차단으로 사용하려면 workflow에서
+> 댓글 게시 후 ESLint 종료 코드로 실패 처리하고, branch protection의 required check으로
+> 등록하세요.
+
 ### 에이전트 모드 — AI 가 실제 파일을 만들고 고친다 (v1.5+)
 
 `bc chat` 은 더 이상 채팅창에 코드 블록을 출력만 하지 않습니다. **모델이 직접 툴을 호출해서
