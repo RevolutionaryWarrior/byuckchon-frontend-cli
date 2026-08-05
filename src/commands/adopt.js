@@ -11,13 +11,15 @@ import {
   apiRootForFramework,
   scaffoldApiConventionDoc,
 } from '../generators/apiConventionDoc.js';
+import { scaffoldReviewAutomation } from '../generators/scaffoldReviewAutomation.js';
+import { detectMonorepoRoot } from '../context/monorepo.js';
 import { ensureRequiredDependencies } from '../utils/ensureRequiredDependencies.js';
 
 /**
  * `bc adopt`
  *
- * 기존 프로젝트(현재 디렉터리)에 bc.config.json 과 필수 의존성을 추가한다.
- * 기존 소스 코드는 건드리지 않는다.
+ * 기존 프로젝트(현재 디렉터리)에 bc.config.json, 필수 의존성, PR 리뷰 자동화를 추가한다.
+ * 기존 소스 코드와 이미 존재하는 tools/workflow는 건드리지 않는다.
  *
  * 흐름:
  *   1) 자동 감지(framework, styling, language, routing 등) 결과를 보여주고
@@ -176,6 +178,39 @@ export async function adoptCommand(opts = {}) {
   } catch {
     /* 문서 스캐폴드 실패는 치명적이지 않음 */
   }
+
+  // PR 리뷰 자동화는 모노레포 루트에 한 번만 둔다. 기존 tools/workflow는 덮어쓰지 않는다.
+  try {
+    const monorepoRoot = await detectMonorepoRoot(cwd);
+    const reviewProjectRoot = monorepoRoot ?? cwd;
+    const projectType = monorepoRoot ? 'monorepo' : 'single';
+    const reviewAutomation = await scaffoldReviewAutomation({
+      projectRoot: reviewProjectRoot,
+      projectType,
+      overwrite: false,
+    });
+
+    if (reviewAutomation.workflows.length) {
+      console.log(
+        chalk.green(
+          `  ✓ ESLint Convention Review 설정 추가: ${path.join(reviewProjectRoot, '.github', 'workflows')}`,
+        ),
+      );
+    } else {
+      console.log(
+        chalk.dim(
+          `  ESLint Convention Review 설정 유지: ${path.join(reviewProjectRoot, '.github', 'workflows')} (이미 존재)`,
+        ),
+      );
+    }
+  } catch (error) {
+    console.log(
+      chalk.yellow(
+        `  ⚠ ESLint Convention Review 설정을 추가하지 못했습니다: ${error.message}`,
+      ),
+    );
+  }
+
   console.log();
   console.log(chalk.dim('  다음:'));
   if (!process.env.ANTHROPIC_API_KEY) {

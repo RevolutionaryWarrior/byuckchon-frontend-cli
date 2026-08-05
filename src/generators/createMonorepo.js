@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 import { createApp } from './createApp.js';
+import { scaffoldReviewAutomation } from './scaffoldReviewAutomation.js';
 
 /**
  * 새 pnpm 모노레포를 스캐폴드한다. (marketd-frontend 구조 참고)
@@ -32,6 +33,7 @@ export async function createMonorepo(config) {
   await writeRootFiles(root, config, scope);
   await writeConfigTypescript(root, scope);
   await writeConfigEslint(root, scope);
+  await scaffoldReviewAutomation({ projectRoot: root, projectType: 'monorepo' });
 
   // 최초 앱 하나만 생성. 이후 추가는 `bc add`.
   const appName = config.appName;
@@ -71,9 +73,9 @@ async function writeRootFiles(root, config, scope) {
       typecheck: 'turbo run typecheck',
       'tokens:build': 'turbo run tokens:build',
       format:
-        'prettier --write "**/*.{ts,tsx,js,jsx,json,md,yml,yaml}" --ignore-path .gitignore',
+        'prettier --write "**/*.{ts,tsx,js,jsx,cjs,json,md,yml,yaml}" --ignore-path .gitignore',
       'format:check':
-        'prettier --check "**/*.{ts,tsx,js,jsx,json,md,yml,yaml}" --ignore-path .gitignore',
+        'prettier --check "**/*.{ts,tsx,js,jsx,cjs,json,md,yml,yaml}" --ignore-path .gitignore',
       clean: 'turbo run clean && rm -rf node_modules .turbo',
       preinstall: 'npx only-allow pnpm',
       // 최초 앱 실행 단축키 (bc add 시 앱마다 추가됨).

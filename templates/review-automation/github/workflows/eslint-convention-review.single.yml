@@ -1,0 +1,44 @@
+name: ESLint Convention Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - dev
+
+concurrency:
+  group: eslint-convention-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  eslint-conventions:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: 의존성 설치
+        run: npm ci
+
+      - name: ESLint 컨벤션 리뷰 댓글
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          npx eslint . --ext ts,tsx --rulesdir tools/eslint-rules \
+            --rule 'internal-blocking-conventions:error' \
+            --rule 'internal-warning-conventions:warn' \
+            -f tools/eslint-rules/internal-rdjson-formatter.js \
+            -o /tmp/eslint-conventions.rdjson || true
+          node tools/post-eslint-review-comments.cjs \
+            /tmp/eslint-conventions.rdjson \
+            eslint-conventions
