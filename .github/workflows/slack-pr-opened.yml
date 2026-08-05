@@ -1,0 +1,157 @@
+# Slack PR Opened Notification
+#
+# PR이 처음 열릴 때만 Slack으로 알림을 보냅니다.
+# 댓글, 커밋 push, reopen, synchronize, merge/close 이벤트에는 동작하지 않습니다.
+#
+# Required repository secret:
+#   SLACK_WEBHOOK_URL
+#
+# Optional repository variable:
+#   SLACK_USER_MAP
+#   Example: {"github-login":"U12345678","team:frontend":"<!subteam^S12345678|frontend>"}
+
+name: Slack PR Opened Notification
+
+on:
+  pull_request:
+    types: [opened]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+      contents: read
+
+    steps:
+      - name: Build Slack payload
+        id: payload
+        env:
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
+          SLACK_USER_MAP: ${{ vars.SLACK_USER_MAP }}
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+
+          const event = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'));
+          const pr = event.pull_request;
+          const slackUserMap = parseSlackUserMap(process.env.SLACK_USER_MAP);
+
+          const authorLogin = pr.user.login;
+          const reviewers = [
+            ...(pr.requested_reviewers || []).map((user) => ({ type: 'user', login: user.login })),
+            ...(pr.assignees || []).map((user) => ({ type: 'user', login: user.login })),
+            ...(pr.requested_teams || []).map((team) => ({ type: 'team', login: team.slug })),
+          ];
+
+          const uniqueReviewers = dedupeReviewTargets(reviewers)
+            .filter((reviewer) => !(reviewer.type === 'user' && reviewer.login === authorLogin));
+
+          const authorMention = mentionFor({ type: 'user', login: authorLogin }, slackUserMap);
+          const reviewerMentions = uniqueReviewers.map((reviewer) => mentionFor(reviewer, slackUserMap));
+          const reviewerText = reviewerMentions.length > 0 ? reviewerMentions.join(' ') : '확인 담당자 미지정';
+          const labels = (pr.labels || []).map((label) => label.name).join(', ') || '없음';
+
+          const message = [
+            pr.html_url,
+            `${authorMention} 님이 PR을 올렸습니다.`,
+            `확인 요청: ${reviewerText}`,
+            `<${pr.html_url}|#${pr.number} ${escapeMrkdwn(pr.title)}>`,
+          ].join('\n');
+
+          const payload = {
+            text: `${authorLogin} opened PR #${pr.number}: ${pr.title}`,
+            unfurl_links: true,
+            unfurl_media: false,
+            blocks: [
+              {
+                type: 'section',
+                text: {
+                  type: 'mrkdwn',
+                  text: message,
+                },
+              },
+              {
+                type: 'section',
+                fields: [
+                  {
+                    type: 'mrkdwn',
+                    text: `*Repository*\n${escapeMrkdwn(event.repository.full_name)}`,
+                  },
+                  {
+                    type: 'mrkdwn',
+                    text: `*Labels*\n${escapeMrkdwn(labels)}`,
+                  },
+                ],
+              },
+            ],
+          };
+
+          fs.writeFileSync('slack-payload.json', `${JSON.stringify(payload)}\n`);
+
+          function parseSlackUserMap(rawValue) {
+            if (!rawValue || rawValue.trim() === '') {
+              return {};
+            }
+
+            try {
+              return JSON.parse(rawValue);
+            } catch (error) {
+              throw new Error(`SLACK_USER_MAP must be valid JSON: ${error.message}`);
+            }
+          }
+
+          function mentionFor(target, slackUserMap) {
+            const key = target.type === 'team' ? `team:${target.login}` : target.login;
+            const mappedValue = slackUserMap[key];
+
+            if (!mappedValue) {
+              return target.type === 'team' ? `@${target.login}` : `@${target.login}`;
+            }
+
+            if (mappedValue.startsWith('<')) {
+              return mappedValue;
+            }
+
+            if (mappedValue.startsWith('!')) {
+              return `<${mappedValue}>`;
+            }
+
+            return `<@${mappedValue}>`;
+          }
+
+          function dedupeReviewTargets(targets) {
+            const seen = new Set();
+            return targets.filter((target) => {
+              const key = `${target.type}:${target.login}`;
+              if (seen.has(key)) {
+                return false;
+              }
+              seen.add(key);
+              return true;
+            });
+          }
+
+          function escapeMrkdwn(value) {
+            return String(value)
+              .replaceAll('&', '&')
+              .replaceAll('<', '<')
+              .replaceAll('>', '>');
+          }
+          NODE
+
+      - name: Send Slack notification
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "::error::SLACK_WEBHOOK_URL repository secret is required."
+            exit 1
+          fi
+
+          curl \
+            --fail \
+            --request POST \
+            --header 'Content-type: application/json' \
+            --data @slack-payload.json \
+            "$SLACK_WEBHOOK_URL"
