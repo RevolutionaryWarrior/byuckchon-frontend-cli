@@ -18,7 +18,10 @@ export async function createPackageJson(rootDir, config) {
           'tokens:build': 'style-dictionary build --config token.config.js',
           lint: 'eslint . --ext ts,tsx',
           preview: 'vite preview',
-          format: 'prettier --write "src/**/*.{ts,tsx,css}"',
+          format:
+            'prettier --write "src/**/*.{ts,tsx,css}" "tools/**/*.{js,cjs,json,md}"',
+          'format:check':
+            'prettier --check "src/**/*.{ts,tsx,css}" "tools/**/*.{js,cjs,json,md}"',
         }
       : {
           dev: 'next dev',
@@ -26,7 +29,10 @@ export async function createPackageJson(rootDir, config) {
           'tokens:build': 'style-dictionary build --config token.config.js',
           start: 'next start',
           lint: 'next lint',
-          format: 'prettier --write "src/**/*.{ts,tsx,css}"',
+          format:
+            'prettier --write "src/**/*.{ts,tsx,css}" "tools/**/*.{js,cjs,json,md}"',
+          'format:check':
+            'prettier --check "src/**/*.{ts,tsx,css}" "tools/**/*.{js,cjs,json,md}"',
         },
     dependencies: {
       react: isReact ? versions.react : versions['next-react'],

@@ -1,0 +1,86 @@
+# ESLint 기반 기계적 컨벤션을 PR 인라인 댓글로 게시합니다.
+# typecheck/lint/build 성공 여부는 PR Check workflow가 담당합니다.
+#
+# 각 패키지의 eslint.config.mjs에는 internal 플러그인이 없으므로,
+# tools/eslint-rules/review.config.mjs 전용 config로 레포 루트에서
+# PR 변경 파일만 한 번에 검사합니다.
+
+name: ESLint Convention Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - dev
+
+concurrency:
+  group: eslint-convention-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  eslint-conventions:
+    name: ESLint Convention Review
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: 의존성 설치
+        run: pnpm install --frozen-lockfile
+
+      - name: PR 변경 파일 조회
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" \
+            --paginate \
+            --jq '.[] | select(.status != "removed") | .filename | select(test("\\.(ts|tsx)$"))' \
+            > /tmp/eslint-convention-files.txt
+
+          echo "변경된 TypeScript 파일:"
+          cat /tmp/eslint-convention-files.txt
+
+      - name: ESLint 컨벤션 검사
+        run: |
+          if [[ ! -s /tmp/eslint-convention-files.txt ]]; then
+            echo "변경된 TypeScript 파일이 없습니다."
+            printf '{"source":{"name":"eslint-conventions"},"diagnostics":[]}' \
+              > /tmp/eslint-conventions.rdjson
+            exit 0
+          fi
+
+          mapfile -t changed_files < /tmp/eslint-convention-files.txt
+
+          set +e
+          pnpm exec eslint "${changed_files[@]}" \
+            --config tools/eslint-rules/review.config.mjs \
+            --no-error-on-unmatched-pattern \
+            -f tools/eslint-rules/internal-rdjson-formatter.js \
+            -o /tmp/eslint-conventions.rdjson
+          eslint_exit=$?
+          set -e
+
+          if [[ ! -f /tmp/eslint-conventions.rdjson ]]; then
+            echo "ESLint가 /tmp/eslint-conventions.rdjson 을 생성하지 못했습니다. (exit ${eslint_exit})"
+            exit "$eslint_exit"
+          fi
+
+      - name: 리뷰 댓글 게시
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          node tools/post-eslint-review-comments.cjs \
+            /tmp/eslint-conventions.rdjson \
+            eslint-conventions
