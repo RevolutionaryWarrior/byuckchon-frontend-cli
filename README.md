@@ -1,180 +1,223 @@
 # byuckchon-frontend-cli
 
-[byuckchon](https://www.byuckchon.com) 프론트엔드 팀의 **프로젝트 스타터 + AI 어시스턴트** CLI.
-React(Vite) / Next.js(App Router) TypeScript 프로젝트를 만들고, `bc chat` 으로 AI 와 코드 이야기를 나눌 수 있습니다.
+[byuckchon](https://www.byuckchon.com) 프론트엔드 팀을 위한 프로젝트 스타터이자
+AI 개발 어시스턴트 CLI입니다. 
+
+```text
+프로젝트 생성 또는 연결
+→ 프로젝트 문맥(Figma · OpenAPI · 컨벤션) 등록
+→ AI와 대화하며 코드 탐색·생성·수정
+→ PR에서 기계적인 컨벤션을 자동 리뷰
+```
+
 
 ## 요구 사항
 
-- [Node.js](https://nodejs.org/) 18+ (LTS 권장)
+- Node.js 18+ (LTS 권장)
 - AI 사용 시: Anthropic 또는 OpenAI API 키
 
 ## 설치
 
-`bc` 는 **CLI 툴** 이라서 프로젝트 의존성으로 설치하면 안 되고, **글로벌**(또는 `npx`)로 써야 합니다.
+
+`bc`는 프로젝트 내부에서 사용하는 라이브러리가 아니라 **CLI 도구**입니다.
+
+따라서 프로젝트 의존성으로 설치하지 않고, 다음 중 한 가지 방식으로 사용합니다.
+
+### 1. 글로벌 설치
+
 
 ```bash
-# 글로벌 설치 (제일 흔한 방식)
+# npm
 npm install -g byuckchon-frontend-cli
-pnpm add -g byuckchon-frontend-cli
-yarn global add byuckchon-frontend-cli
 
-# 또는 설치 없이 일회성
+# pnpm
+pnpm add -g byuckchon-frontend-cli
+
+# yarn
+yarn global add byuckchon-frontend-cli
+```
+
+### 2. 설치 없이 일회성 실행
+
+글로벌 설치를 원하지 않는다면 `npx` 또는 `pnpm dlx`로 실행할 수 있습니다.
+
+```bash
+# npm
 npx byuckchon-frontend-cli adopt
+
+# pnpm
 pnpm dlx byuckchon-frontend-cli adopt
 ```
 
-설치되면 `bc` / `byuckchon-frontend-cli` 두 개 다 PATH 에 깔립니다.
-
-### 모노레포에서 쓰기
-
-`bc` 자체는 **루트에 한 번만** 글로벌 설치하면 충분합니다. 다만 `bc.config.json` 은
-**각 패키지(앱) 디렉터리마다 따로** 두는 걸 권장 — Tailwind 버전, 라우팅, 스타일링이
-앱마다 다르면 `detected.*` 가 달라야 RAG 컨텍스트도 정확해집니다.
+설치가 완료되면 다음 두 명령어를 모두 사용할 수 있습니다.
 
 ```bash
-# 루트에서 한 번만
-npm i -g byuckchon-frontend-cli
-
-# 각 앱마다 따로 셋업
-cd apps/web    && bc adopt    # apps/web/bc.config.json 생성
-cd apps/mobile && bc adopt    # apps/mobile/bc.config.json 생성
-
-# 일할 땐 그 앱 디렉토리에서 실행
-cd apps/web && bc             # apps/web/bc.config.json 을 자동으로 읽어감
+bc
+byuckchon-frontend-cli
 ```
 
-`bc` 는 실행 디렉토리에서 위로 거슬러 올라가며 가장 가까운 `bc.config.json` 을 찾습니다.
-즉 모노레포 루트에 `bc.config.json` 이 없고 `apps/web/bc.config.json` 만 있으면,
-`apps/web/somewhere/deeper/...` 에서 `bc` 를 쳐도 `apps/web/bc.config.json` 이 잡힙니다.
 
-> 만약 `pnpm add byuckchon-frontend-cli` (글로벌 플래그 없이) 한 상태에서 `bc` 가
-> 안 먹는다면, 이건 패키지 의존성으로 박혀서 그래요. `pnpm remove byuckchon-frontend-cli`
-> 후 위처럼 `pnpm add -g` 로 다시 설치해주세요.
+### 모노레포 사용 시
 
-## 명령
+CLI 자체는 컴퓨터에 **한 번만 글로벌 설치**하면 됩니다.
 
-### `bc init` — 새 프로젝트 만들기
+다만 `bc`는 현재 실행한 디렉터리부터 상위 디렉터리로 이동하면서 가장 가까운 `bc.config.json`을 찾기 때문에 
+
+각 앱이나 패키지 디렉터리마다 별도로 두어 실행도 해당 디렉터리 마다 실행하는걸 권장합니다.
+
+앱마다 설정 파일을 분리하면 각 프로젝트에 맞는 `detected.*` 정보가 생성되므로, RAG 컨텍스트도 더 정확해집니다.
+
+
+#### 모노레포 권장 사용 흐름
+
+```bash
+# 1. CLI 글로벌 설치
+pnpm add -g byuckchon-frontend-cli
+
+# 2. 앱별 설정 생성
+cd apps/web && bc adopt
+cd ../mobile && bc adopt
+
+# 3. 작업할 앱에서 실행
+cd ../web && bc
+```
+
+
+### bc 명령어 오작동 해결 방법
+
+다음처럼 글로벌 옵션 없이 설치했다면 프로젝트 의존성으로 추가됩니다.
+
+```bash
+pnpm add byuckchon-frontend-cli
+```
+
+이 경우 터미널에서 `bc` 명령어가 바로 실행되지 않을 수 있습니다.
+
+먼저 프로젝트 의존성에서 제거합니다.
+
+```bash
+pnpm remove byuckchon-frontend-cli
+```
+
+그다음 글로벌로 다시 설치합니다.
+
+```bash
+pnpm add -g byuckchon-frontend-cli
+```
+
+설치 후 다음 명령어로 확인할 수 있습니다.
+
+```bash
+bc
+```
+
+## 주요 기능
+
+### 프로젝트 생성: `bc init`
+
+`bc init`은 다음 두 형태를 지원합니다.
+
+| 형태 | 생성 결과 | 적합한 경우 |
+| --- | --- | --- |
+| 단일 프로젝트 | React(Vite) 또는 Next.js(App Router)  | 하나의 웹 서비스를 빠르게 시작할 때 |
+| 모노레포 | pnpm + Turborepo 루트, `apps/`, `packages/` | 여러 웹 앱과 공용 패키지를 함께 관리할 때 |
+
+생성 프로젝트에는 TypeScript, ESLint, Prettier, Tailwind, `bc.config.json`, API 코드 가이드가
+기본으로 포함됩니다.
 
 ```bash
 bc init
 ```
 
-프로젝트 이름, 프레임워크, **기본 AI 모델, Figma URL, OpenAPI URL** 을 묻고
-새 폴더에 코드 + `bc.config.json` 까지 만들어 줍니다.
+### 기존 프로젝트 연결: `bc adopt`
 
-### ESLint Convention Review 자동 생성
-
-`bc init` 으로 만드는 **새 프로젝트**에는 PR에서 기계적으로 판별할 수 있는
-컨벤션을 리뷰 댓글로 남기는 ESLint 자동화가 함께 생성됩니다. 기존 프로젝트에서도
-`bc adopt` 를 실행하면 같은 설정을 추가합니다. `bc adopt` 는 기존 `tools/` 와 workflow를
-덮어쓰지 않고, 없는 파일만 생성합니다.
-
-```text
-<project-root>/
-├─ .github/workflows/
-│  └─ eslint-convention-review.yml
-└─ tools/
-   ├─ eslint-rules/
-   │  ├─ internal-blocking-conventions.js
-   │  ├─ internal-warning-conventions.js
-   │  ├─ internal-rdjson-formatter.js
-   │  ├─ internal-plugin.cjs
-   │  ├─ review.config.mjs
-   │  └─ package.json
-   └─ post-eslint-review-comments.cjs
-```
-
-모노레포도 위 파일들은 **루트에 한 번만** 생성됩니다. `apps/*` 와 `packages/*`
-안에는 `tools/` 나 workflow를 복사하지 않습니다.
-
-| 구분 | 담당 | 표시 위치 |
-| --- | --- | --- |
-| 일반 `lint` | 기존 ESLint 규칙 검사 | Actions 로그 annotation |
-| ESLint Convention Review | 파일명, export 방식, boolean 변수명 등 정형 규칙 | PR 인라인 댓글 |
-| AI 코드 리뷰 | 설계, 예외 처리, 비즈니스 로직처럼 문맥이 필요한 판단 | 별도 AI 리뷰 설정 |
-
-일반 `lint` script와 ESLint 기본 config에는 custom convention rule을 넣지 않습니다.
-그래야 일반 lint 결과와 PR 리뷰 댓글이 섞이지 않습니다.
-
-workflow는 `dev` 브랜치를 대상으로 하는 PR에서 실행됩니다.
-
-- 단일 프로젝트는 npm으로 custom rule을 실행합니다.
-- 모노레포는 pnpm으로 PR에서 변경된 `.ts` / `.tsx` 파일만 검사합니다.
-- `internal-blocking-conventions` 결과는 `BLOCKING`,
-  `internal-warning-conventions` 결과는 `WARNING` 댓글로 게시됩니다.
-- 댓글 본문의 숨김 marker를 사용해 같은 진단의 중복 게시를 피하고, 내용이 바뀌면
-  기존 댓글을 갱신합니다.
-
-`tools/post-eslint-review-comments.cjs`도 format 대상에 포함되도록, 생성 프로젝트의
-`format` 및 `format:check` script는 `tools/**/*.{js,cjs,json,md}`를 함께 검사합니다.
-
-> 현재 workflow는 `BLOCKING` 댓글을 게시하지만, ESLint 오류 자체를 workflow 실패로
-> 처리하지는 않습니다. GitHub status check까지 merge 차단으로 사용하려면 workflow에서
-> 댓글 게시 후 ESLint 종료 코드로 실패 처리하고, branch protection의 required check으로
-> 등록하세요.
-
-### 에이전트 모드 — AI 가 실제 파일을 만들고 고친다 (v1.5+)
-
-`bc chat` 은 더 이상 채팅창에 코드 블록을 출력만 하지 않습니다. **모델이 직접 툴을 호출해서
-파일을 만들고/고칩니다** (Codex CLI / Cursor agent 와 같은 컨셉).
-
-내장된 툴:
-
-| 툴            | 동작                                                   |
-| ------------- | ------------------------------------------------------ |
-| `read_file`   | 프로젝트 내 파일/디렉터리 내용 읽기                     |
-| `list_files`  | 글롭 패턴으로 파일 나열                                 |
-| `search_code` | RAG 인덱스 의미 기반 검색 (인덱스 있어야 함)             |
-| `search_openapi` | OpenAPI 스펙에서 엔드포인트 검색 (path/summary/tag) — 큰 스펙도 OK |
-| `get_openapi_endpoint` | 특정 엔드포인트 상세 (params/requestBody/responses, `$ref` 인라인) |
-| `write_file`  | 새 파일 생성 또는 통째 덮어쓰기                          |
-| `edit_file`   | 유일한 `old_string → new_string` 으로 부분 수정 (안전)  |
-| `fetch_figma` / `fetch_figma_image` / `fetch_figma_styles` | Figma 디자인/이미지/토큰 |
-
-모델은 한 턴 안에서 **최대 12 step** 까지 툴을 자유롭게 호출합니다. 일반적인 흐름:
-1. `list_files` 로 `src/api/` 구조 파악
-2. `read_file` 로 기존 모듈 2~3개 읽고 컨벤션 학습
-3. `search_code` 로 fetch 래퍼 / hook 패턴 검색
-4. `write_file` 로 `api/`, `service/`, `hook/`, `schema/`, `types/` 파일들을 한꺼번에 생성
-5. 마지막에 만든 파일 목록과 import 가이드를 짧게 요약
-
-모든 파일 경로는 `bc.config.json` 이 있는 디렉터리(=프로젝트 루트) 하위로만 강제됩니다.
-`../` 이나 절대경로 탈출은 에러로 거부.
-
-> **승인 게이트 (Phase 4 예정):** 지금은 모델이 write/edit 을 호출하면 즉시 디스크에 반영됩니다.
-> 안전망은 git diff. 매 작업 후 `git status` / `git diff` 로 확인하고, 마음에 안 들면 `git checkout .` 으로 되돌리세요.
-> 다음 버전에서 per-file 승인(`y/n/v`) 옵션 추가 예정.
-
-### Figma 연동 — 디자인 → 코드 (v1.6+)
-
-채팅 안에서 모델이 직접 Figma REST API 를 호출해서 디자인 정보를 읽고 컴포넌트/페이지를 만듭니다.
-
-#### 사용자가 한 번만 하는 셋업
+`bc adopt`는 `package.json`과 디렉터리를 스캔하여 bc 설정만 세팅합니다.
 
 ```bash
-# 1) Figma → Settings → Personal access tokens → "Generate new token"
-#    Read 권한만 있으면 충분 (file 읽기 / image export 둘 다 read 로 됨)
-
-# 2) bc init이 만든 .env의 FIGMA_TOKEN 값 채우기 (gitignore 됨)
-FIGMA_TOKEN=figd_xxxxxxxxxxxxxxxx
-
-# 3) bc.config.json 의 design.figma 에 파일/노드 URL 박기 (bc adopt 시점에 입력하거나 직접 편집)
+cd <프로젝트-루트>
+bc adopt
 ```
 
-`bc.config.json` 예시:
+모노레포 앱 디렉터리에서 실행하면 앱별 `bc.config.json`을 만들고, PR 리뷰 자동화 파일은
+모노레포 루트에 한 번만 둡니다.
+
+### AI와 코드 작업하기: `bc chat`
+
+`bc`만 입력해도 채팅을 시작할 수 있습니다.
+
+```bash
+bc
+
+# 한글 입력이 불안정하면 단순 입력 모드 사용
+bc chat --plain
+```
+
+AI는 단순히 코드 블록을 제안하는 데 그치지 않고, 다음 작업을 수행할 수 있습니다.
+
+- 파일과 디렉터리 읽기
+- 코드·OpenAPI 검색
+- 파일 생성 및 부분 수정
+- Figma 데이터와 이미지 조회
+
+파일 쓰기와 수정은 `bc.config.json`이 있는 프로젝트 루트 하위에서만 허용됩니다. 작업 뒤에는
+`git diff`와 `git status`로 변경 사항을 확인하는 것을 권장합니다.
+
+### 팀 문서와 코드베이스 RAG
+
+팀 컨벤션 문서를 `bc.config.json`의 `docs`에 등록하면, 채팅 시작 시 AI 문맥으로 자동 주입됩니다.
 
 ```json
 {
-  "design": {
-    "figma": "https://www.figma.com/design/ABC123/Marketd-Admin?node-id=2-105",
-    "figmaTokenEnv": "FIGMA_TOKEN"
-  }
+  "docs": ["docs/frontend-conventions.md", "docs/api-guide.md"]
 }
 ```
 
-#### 디자이너 협업이 필요한 부분
+문서를 따로 등록하지 않아도 `bc.md`, `.bc/conventions.md`, `AGENTS.md`, `FRONTEND.md`,
+`docs/frontend.md` 같은 관례 파일을 자동으로 찾습니다.
 
-| 디자이너 측 작업                       | 왜 필요?                                                  |
+코드 인덱스는 채팅 시 자동으로 준비되며, 수동으로 관리할 수도 있습니다.
+
+```bash
+bc index
+bc index --rebuild
+bc index status
+bc index search "토큰 갱신"
+```
+
+### OpenAPI와 타입 생성
+
+`bc.config.json`의 `api.openapi`에 스펙 URL을 설정하면, AI가 채팅 중 엔드포인트와 스키마를
+검색할 수 있습니다. 타입 파일이 필요할 때는 결정론적인 코드 생성 명령을 사용하세요.
+
+```bash
+# bc.config.json에 등록한 OpenAPI URL 사용
+bc gen api-types
+
+# URL 또는 파일을 직접 지정
+bc gen api-types --source https://api.example.com/openapi.json
+bc gen api-types --source ./openapi.yaml
+```
+
+생성 기본 경로는 `src/api/types.gen.ts`이며, `--out` 옵션으로 바꿀 수 있습니다.
+
+### Figma 연동
+
+Figma 파일 또는 노드 URL을 등록하고 개인 액세스 토큰을 `.env`에 넣으면, AI가 Figma 정보를
+구현 맥락으로 활용할 수 있습니다.
+
+```bash
+FIGMA_TOKEN=figd_xxxxxxxxxxxxxxxx
+```
+
+채팅에서 Figma URL을 함께 전달하면 노드 구조, 이미지, 스타일 정보를 조회할 수 있습니다.
+
+```text
+이 Figma 화면을 참고해 멤버 카드 컴포넌트를 만들어줘.
+https://www.figma.com/design/.../?node-id=12-34
+```
+
+#### 디자이너 협업
+| 디자이너 측 작업                       | 요청 이유                                                  |
 | --------------------------------------- | --------------------------------------------------------- |
 | 프레임/컴포넌트에 **의미 있는 이름**     | `Frame 21` 이 아니라 `Card/Product/Sold-out` 처럼 의미별로 — AI 가 이름으로 컴포넌트 이름과 variant 를 추론합니다. |
 | **Auto layout** 적용                    | 안 쓰면 픽셀 좌표만 떨어져 `position: absolute` 코드가 나옵니다. Auto layout 이면 자동으로 `flex`/`gap` 변환. |
@@ -182,242 +225,72 @@ FIGMA_TOKEN=figd_xxxxxxxxxxxxxxxx
 | **Components** 화 (♦ 마름모 아이콘)     | 반복 UI 가 component 면 모델이 "이거 디자인 시스템 컴포넌트구나" 인식 → 코드에서도 재사용 컴포넌트를 만듭니다. |
 | frame 별로 **"Copy link to selection"** | 일반 share link 는 파일 전체. 특정 frame URL 을 받아야 AI 가 그것만 정확히 가져옵니다. |
 
-#### 채팅에서 쓰는 법
+### ESLint Convention Review
+
+`bc init`과 `bc adopt`는 프로젝트 루트에 아래 파일을 준비합니다.
 
 ```text
-you › 새 멤버 카드 컴포넌트 만들어줘. 디자인은 https://www.figma.com/design/.../?node-id=12-34 이거 참고해서.
-
-🔧 fetch_figma("https://www.figma.com/design/.../?node-id=12-34")
-🔧 list_files("src/components/**/Card*")
-🔧 read_file("src/components/Card/ProductCard.tsx")
-🆕 생성 src/components/Card/MemberCard/MemberCard.tsx (52 lines)
-🆕 생성 src/components/Card/MemberCard/index.ts (3 lines)
-bc › Auto layout 이 row 였고 padding 12/16 이었어요. MemberCard 만들었습니다.
-     기존 ProductCard 와 같은 폴더 컨벤션을 따랐어요.
+.github/workflows/eslint-convention-review.yml
+tools/eslint-rules/
+tools/post-eslint-review-comments.cjs
 ```
 
-내장 Figma 툴:
+PR이 `dev` 브랜치를 대상으로 할 때, workflow가 기계적으로 판별 가능한 규칙을 검사하고
+변경 줄에 댓글을 게시합니다.
 
-| 툴                    | 동작                                                          |
-| --------------------- | ------------------------------------------------------------- |
-| `fetch_figma`         | 노드 트리 (autoLayout / fills / text / size / children) 가져오기 |
-| `fetch_figma_image`   | 프레임을 PNG/JPG/SVG 로 export — public asset 으로 저장도 가능 |
-| `fetch_figma_styles`  | 파일의 컬러/타이포 토큰 목록 → 디자인 토큰 generator 만들 때    |
+| 구분 | 담당 | 결과 |
+| --- | --- | --- |
+| 일반 lint | 기존 ESLint 규칙 | Actions annotation |
+| Convention Review | 파일명, export 방식, boolean 변수명 등 | PR 인라인 `BLOCKING` 또는 `WARNING` 댓글 |
+| AI 리뷰 | 설계·예외 처리·비즈니스 판단 | 별도 AI 리뷰 workflow에서 구성 |
 
-> Figma 응답은 자동으로 압축됩니다 (자식 60개, 깊이 8 까지). 너무 큰 프레임은 더 작은
-> 자식 frame URL 을 줘서 분할 정복하세요.
+같은 지적은 숨김 marker를 기준으로 중복 게시하지 않고, 메시지가 바뀌면 기존 댓글을 갱신합니다.
+모노레포에서는 workflow와 `tools/`가 루트에 한 번만 존재하며, PR에서 변경된 TypeScript 파일을
+대상으로 검사합니다.
 
-### 팀 컨벤션 문서(.md) 자동 주입 (v1.8+)
+### 설정과 세션 관리
 
-FE 전반의 규칙(폴더 구조, 네이밍, 스웨거 → 코드 변환 규칙 등)을 `.md` 로 적어두면
-**매 chat 세션에 시스템 프롬프트로 자동 주입**됩니다. AI 는 기존 코드 패턴보다 이 문서를 우선합니다.
+전역 설정은 `~/.bc/config.json`, 프로젝트 설정은 `<project>/bc.config.json`에 저장됩니다.
 
-**파일명은 고정이 아닙니다.** 아무 경로나 `bc.config.json` 의 `docs` 에 적으면 됩니다.
-적지 않으면 관례 파일명(`bc.md`, `.bc/conventions.md`, `AGENTS.md`, `FRONTEND.md`, `docs/frontend.md`)을 자동 탐지합니다.
-
-```json
-{
-  "docs": ["docs/fe-conventions.md", "docs/api-guide.md"]
-}
+```bash
+bc config show
+bc config set-model
+bc config set-key anthropic
+bc config set-key openai
+bc config set-ui plain
 ```
 
-- 문서당 최대 24KB, 전체 48KB 까지 (토큰 폭발 방지). 헤더에 `docs` 줄로 로드된 파일이 표시됩니다.
-- (고급) 항목을 `{ "path": "...", "when": { "framework": "next" } }` 형태로 적으면 프레임워크별 조건부 주입도 가능합니다.
+대화 기록은 프로젝트 안에서는 `.bc/history/`에, 프로젝트 밖에서는 사용자 설정 디렉터리에
+저장됩니다. 최근 대화를 이어가려면 다음 명령을 사용하세요.
 
-#### API 코드 컨벤션 .md 자동 포함
+```bash
+bc chat -c
+bc chat --list-history
+bc chat --resume <session-id>
+```
 
-`bc init` / `bc adopt` 를 실행하면 **API 코드 생성 가이드(`api-codegen.md`)가 프레임워크에 맞는 위치에 자동으로 깔립니다.**
 
-| 프레임워크 | 위치 |
+#### 세션 내 슬래시 명령
+
+채팅 중 `/`를 입력하면 사용 가능한 명령이 자동완성 메뉴로 표시됩니다.
+
+| 명령 | 설명 |
 | --- | --- |
-| React (Vite/CRA 등) | `src/api/api-codegen.md` |
-| Next.js | `src/lib/api/api-codegen.md` |
+| `/clear` | 현재 대화 컨텍스트 비우기 |
+| `/history` | 프로젝트의 이전 대화 목록 보기 |
+| `/retry` | 마지막 사용자 요청 다시 실행 |
+| `/model <id>` | 현재 세션의 모델 변경. 인자가 없으면 모델 목록 표시 |
+| `/figma-link <url\|off>` | 프로젝트 Figma 링크 설정 또는 해제 |
+| `/openapi-link <url\|off>` | 프로젝트 OpenAPI 링크 설정 또는 해제 |
+| `/cost` | 현재 세션의 누적 토큰과 비용 확인 |
+| `/image <path>` | 이미지 첨부. Finder에서 파일을 터미널로 끌어다 놓아 경로를 넣을 수도 있음 |
+| `/paste` | 클립보드의 이미지 또는 스크린샷 첨부. macOS에서 `pngpaste` 필요 |
+| `/attachments` | 현재 첨부 목록 보기 |
+| `/clear-attach` | 현재 첨부 목록 비우기 |
+| `/index` | 코드베이스 인덱스 즉시 빌드 또는 갱신 |
+| `/rag on\|off` | 코드베이스 RAG 컨텍스트 사용 여부 전환 |
+| `/exit` | 채팅 종료. `Ctrl+C`로도 종료 가능 |
 
-- 이 파일은 `bc.config.json` 의 `docs` 에 자동 등록되어 **chat 시작 시 주입**됩니다.
-- 하나의 문서에 React의 axios 규칙과 Next.js의 fetch 및 Server/Client 경계 규칙이 함께 들어갑니다.
-- 이미 파일이 있으면 덮어쓰지 않습니다.
-
-### OpenAPI / 코드 컨텍스트 — 자동 주입 (v1.4+)
-
-`bc.config.json` 의 `api.openapi` 와 코드 인덱스는 **chat 시작할 때 알아서 준비됩니다.**
-즉, 명령을 외울 필요 없이 그냥 `bc` 만 치고 자연어로 일을 시키면 됩니다.
-
-- **OpenAPI**: chat 시작 시 자동 fetch + 1시간 디스크 캐시 → 엔드포인트 요약을 시스템 프롬프트에 박음.
-  - 헤더에 `openapi` 줄로 표시. 캐시 hit 면 `(cached)`, fresh fetch 면 `(live)`.
-  - **세션 중 서버가 스펙을 바꿔도 자동 대응 (v1.10+)**: `search_openapi` / `get_openapi_endpoint` 가
-    캐시에서 엔드포인트를 못 찾으면 **딱 한 번 최신본을 다시 받아 재검색**합니다 (`🔄 OpenAPI 스펙 새로고침`).
-    남용 방지를 위해 세션당 횟수·간격이 제한됩니다. "방금 스웨거 업데이트했어, 다시 읽어줘" 라고 하면
-    즉시 강제 새로고침(`refresh_openapi`)합니다.
-- **코드 인덱스**: chat 시작 시 인덱스 파일이 없으면 **백그라운드에서 자동 빌드**.
-  - 빌드 중에는 화면에 `📚 인덱싱 중 ...` 진행 표시. 끝나면 `✓` 메시지 한 줄.
-  - OpenAI 키가 없으면 빌드를 건너뛰고 도움 메시지를 띄움 (Anthropic 은 임베딩 API 미제공).
-- **수동 컨트롤이 필요할 때:**
-
-| 시나리오                                | 명령                                                |
-| --------------------------------------- | --------------------------------------------------- |
-| 인덱스 다시 빌드 (chat 안에서)          | `/index` 또는 `/index rebuild`                       |
-| 인덱스 다시 빌드 (chat 밖에서)          | `bc index` / `bc index --rebuild`                   |
-| 인덱스 상태/검색                         | `bc index status` / `bc index search "토큰 갱신"`    |
-| OpenAPI → `*.gen.ts` 결정론 생성         | `bc gen api-types` (필요할 때만, AI 가 권하기도 함) |
-| RAG 잠시 끄기                            | chat 안에서 `/rag off`                              |
-
-#### 예시 — 진짜로 명령 안 외우고 시키기
-
-`bc.config.json` 에 Swagger URL 만 박혀 있으면:
-
-```text
-you › api/seller 부분 GET~POST 내 api 폴더 구조 참고해서 코드 짜줘
-```
-
-→ 모델이 자동 주입된 OpenAPI 요약 + RAG 로 가져온 `src/api/*` 컨텍스트를 보고
-   해당 프로젝트 컨벤션(예: 기존 fetch 래퍼, axios 인스턴스, TanStack Query 훅 패턴)에 맞춰 코드를 짜 줍니다.
-   타입이 부족하면 모델이 **"`bc gen api-types` 한 번 돌려달라"** 고 직접 안내해 줍니다.
-
-> 비결정론적 코드 생성보다 결정론적인 타입 생성이 안전한 부분(예: `*.gen.ts`) 만 별도 명령으로 빼두고,
-> 컴포넌트/엔드포인트 호출 코드는 채팅으로 처리하는 하이브리드 구조입니다.
-
-#### `bc gen api-types` (선택) — OpenAPI → TS 타입 결정론 생성
-
-```bash
-bc gen api-types                                          # bc.config.json 의 api.openapi 사용
-bc gen api-types --source https://api.dev/openapi.json    # URL 직접
-bc gen api-types --source ./openapi.yaml                  # 로컬 파일
-bc gen api-types --out src/api/types.gen.ts               # 출력 경로 지정 (기본값)
-```
-
-```ts
-import type { paths, components } from '@/api/types.gen';
-
-type ListUsersResponse =
-  paths['/users']['get']['responses']['200']['content']['application/json'];
-type User = components['schemas']['User'];
-```
-
-### `bc adopt` — 기존 프로젝트에 bc 설정만 깔기
-
-```bash
-cd 내-Expo-프로젝트
-bc adopt
-```
-
-`package.json` 과 디렉터리를 스캔해서 **프레임워크/언어/스타일/라우팅/패키지 매니저** 를 자동 감지하고,
-Figma·OpenAPI URL 만 추가로 묻고 `bc.config.json` 을 생성합니다.
-필수 의존성(`@tanstack/react-query`, `zod`, React 계열의 `axios`)이 없으면 감지한 패키지 매니저로
-자동 설치하며, 기존 소스 코드는 건드리지 않습니다.
-
-지원 감지: Next.js · Expo · Electron · Vite+React · Remix · CRA · 일반 React.
-
-### `bc chat` — AI 와 대화 (ink TUI)
-
-```bash
-bc                                         # 인자 없이도 chat 진입 (제일 짧은 단축키)
-bc start                                   # chat 의 alias
-bc chat                                    # ink 풀 TUI (기본)
-bc chat --model claude-fable-5             # 이번 세션만 모델 지정
-bc chat --plain                            # 단순 readline 모드
-bc chat --once "useEffect 의존성 배열 누락된 거 어떻게 찾아?"   # 1회성 호출 (CI/스크립트)
-bc chat -c                                 # 가장 최근 세션 이어가기
-bc chat --list-history                     # 저장된 세션 목록
-bc chat --resume 2026-06-19_15-23-45       # 특정 세션 이어가기
-```
-
-**슬래시 명령 자동완성:** 입력창에서 `/` 만 쳐도 사용 가능한 명령이 메뉴로 펼쳐집니다.
-계속 타이핑하면 필터링되고, `↑↓` 로 이동, `Enter` 또는 `Tab` 으로 자동완성, `Esc` 로 취소.
-
-대화 세션은 자동으로 디스크에 저장됩니다:
-
-- 프로젝트 안에서 실행 → `<projectRoot>/.bc/history/<id>.json` (`.bc/` 는 gitignore 됨)
-- 그 외 → `~/.bc/history/<cwd-hash>/<id>.json`
-
-매 턴마다 자동 저장돼서 터미널이 닫히거나 충돌해도 `bc chat -c` 로 바로 복구할 수 있습니다.
-
-TTY 안에서 자동으로 ink 모드로 뜨고, 파이프/CI 같은 비-TTY 환경에서는
-`--plain` 모드로 자동 폴백합니다.
-
-세션 내 슬래시 명령:
-
-| 명령                | 동작                                       |
-| ------------------- | ------------------------------------------ |
-| `/help`             | 도움말                                     |
-| `/clear`            | 대화 컨텍스트 초기화                        |
-| `/history`          | 이전 대화 선택 후 해당 컨텍스트 이어가기     |
-| `/retry`            | 마지막 사용자 요청 다시 실행                |
-| `/model [id]`       | 세션 모델 변경 (인자 없으면 목록)           |
-| `/figma-link <url\|off>` | 프로젝트 Figma 링크 변경 또는 해제       |
-| `/openapi-link <url\|off>` | 프로젝트 OpenAPI 링크 변경 또는 해제    |
-| `/cost`             | 누적 토큰/비용                              |
-| `/image <path>`     | 다음 메시지에 이미지 첨부 (Vision 모델 권장) |
-| `/paste`            | 클립보드 이미지 첨부 (macOS, `pngpaste` 필요) |
-| `/attachments`      | 현재 첨부 목록                              |
-| `/clear-attach`     | 첨부 비우기                                 |
-| `/index [rebuild]`  | 코드 인덱스 빌드/재빌드 (자동 빌드된 거 갱신) |
-| `/rag on\|off`      | RAG 컨텍스트 주입 즉석 토글                 |
-| `/exit`             | 종료 (`Ctrl+C` 도 가능)                     |
-
-Ink 모드에서 `/history`를 실행하면 `↑↓`로 세션을 선택하고 `Enter`로 불러올 수 있습니다.
-선택한 세션에서 `d`를 누른 뒤 `y`로 확인하면 해당 기록을 삭제합니다. 메시지를 한 번도
-보내지 않고 종료한 빈 세션은 저장되거나 목록에 표시되지 않습니다.
-
-이미지 첨부는 png / jpg / jpeg / gif / webp 만 지원하며,
-Claude / GPT 비전 모델에 멀티파트 메시지로 전달됩니다.
-
-**이미지 첨부 3가지 방법:** (ink·plain 모드 모두 지원 — v1.6.1+)
-1. `/image ./shot.png` — 경로 직접
-2. **드래그 & 드롭** — `/image ` 까지 입력 후, Finder 에서 파일을 터미널 위로 끌어다 놓으면 절대경로가 자동 입력됩니다. Enter.
-3. `/paste` — **macOS 한정**, 클립보드의 이미지(예: `Cmd+Shift+4` 스크린샷 또는 Finder 에서 `Cmd+C` 한 이미지)를 바로 첨부.
-   - 사전에 `brew install pngpaste` 한 번 필요.
-
-> **터미널에서 `Cmd+V` 로 직접 붙이기는 왜 안 되나?** 터미널 앱은 클립보드의 "이미지 바이트" 를
-> 앱에 전달하지 않고 텍스트만 줍니다 (OS/터미널 공통 제약). 그래서 클립보드 이미지를 붙이려면
-> `/paste` 가 `pngpaste` 로 클립보드를 직접 읽어 첨부합니다 — `Cmd+C` → 입력창에 `/paste` → Enter.
-
-> **썸네일 미리보기:** iTerm2 · kitty · WezTerm 에서는 plain 모드에서 첨부 직후 작은 썸네일이
-> 인라인으로 표시됩니다. 그 외 터미널은 파일명 + 용량만 표시됩니다 (터미널이 이미지 렌더링을
-> 지원하지 않기 때문).
-
-### 한글 입력이 자꾸 씹힐 때 (v1.6+)
-
-`ink` 의 TextInput 은 macOS 한글 IME 의 조합 단계와 충돌해 글자가 한 박자 늦게 보이거나
-빠뜨려지는 경우가 있습니다 — ink-text-input 의 알려진 한계입니다.
-
-**가장 확실한 해결**: 입력 모드를 plain(readline) 으로 영구 전환
-
-```bash
-bc config set-ui plain    # 글로벌로 plain 모드 고정
-# 한글 입력 안정, 모든 기본 기능 동작 (RAG, OpenAPI, Figma 툴 호출까지)
-# 단, ink 전용 기능 일부 미지원: 슬래시 자동완성 메뉴, 인라인 이미지 첨부
-```
-
-ink 로 다시 돌아오려면:
-```bash
-bc config set-ui ink
-```
-
-일회성으로 plain 만 쓰고 싶으면 `bc chat --plain`.
-
-### `bc config` — 설정
-
-```bash
-bc config show                              # 현재 적용 중인 설정 확인
-bc config set-model                         # 대화형 모델 선택
-bc config set-model claude-sonnet-5         # 직접 지정
-bc config set-key anthropic                 # 키 안전 입력 (가려짐)
-bc config set-key anthropic sk-ant-...      # 직접 지정
-bc config set-gateway https://ai.example.com  # 사내 게이트웨이 모드
-bc config set-gateway                       # 게이트웨이 해제 (BYOK 모드)
-bc config set-ui plain                      # 한글 IME 안정 모드
-bc config set-ui ink                        # 풀 TUI 복귀
-```
-
-## 설정 위치
-
-```
-~/.bc/config.json     # 글로벌 — API 키, 기본 모델 (chmod 600)
-<project>/bc.config.json   # 프로젝트별 — Figma/OpenAPI 링크, 기본 모델 강제
-.env                   # 프로젝트 — ANTHROPIC_API_KEY 등 (자동 로드)
-```
-
-우선순위: **환경변수 > 글로벌 키**, **프로젝트 모델 > 글로벌 모델**.
 
 ## 지원 모델
 
@@ -430,14 +303,26 @@ bc config set-ui ink                        # 풀 TUI 복귀
 | `gpt-5`             | openai    | 일반 코드                          |
 | `gpt-5-mini`        | openai    | 저렴한 OpenAI                      |
 
-## 토큰/비용 안전장치
 
-- 세션 누적이 `limits.warnAtTokens` 를 넘으면 경고 출력.
-- 한 요청 추정 토큰이 `limits.confirmAtTokens` 를 넘으면 확인.
-- BYOK 가 기본 — 외부에서 깔아도 우리 비용은 0.
-- 사내에서는 게이트웨이 모드로 사용량 모니터링 가능.
+## 제한 사항
 
-## 로드맵
+- AI의 파일 생성·수정은 현재 즉시 반영됩니다. 작업 전후로 Git을 사용해 변경 사항을 검토하세요.
+- 코드베이스 RAG의 임베딩에는 OpenAI API 키가 필요합니다. Anthropic 키만으로는 인덱스를 만들 수 없습니다.
+- Figma 연동에는 개인 액세스 토큰이 필요하며, 매우 큰 프레임은 작은 노드 단위로 나누어 조회하는 편이 좋습니다.
+- ESLint Convention Review는 기본적으로 `dev` 대상 PR에서 실행됩니다. 다른 기본 브랜치를 쓰면
+  생성된 workflow의 `branches`를 수정해야 합니다.
+- 현재 `BLOCKING`은 PR 댓글 분류입니다. workflow 자체를 실패시키고 merge를 강제 차단하려면
+  ESLint 종료 코드 처리와 GitHub branch protection 설정이 추가로 필요합니다.
+- 외부 fork PR은 GitHub token 권한 때문에 인라인 댓글 작성이 제한될 수 있습니다.
+- 기존 모노레포에 `bc adopt`를 적용할 때, 모노레포용 `review.config.mjs`는
+  `packages/config-eslint/react.js` 구조를 전제로 합니다. ESLint 설정 구조가 다르면 해당 import를
+  프로젝트에 맞게 조정해야 합니다.
+- AI Code Review와 typecheck·lint·build·test를 담당하는 PR Check workflow는 현재 자동 생성 대상이
+  아닙니다. 팀의 AI 제공자·테스트 전략에 맞춰 별도로 추가해야 합니다.
+
+## 제품 로드맵
+
+아래 항목은 방향성으로, 일정과 세부 구현은 변경될 수 있습니다.
 
 - [x] Phase 1: provider 추상화, 글로벌/프로젝트 설정, 스트리밍 REPL
 - [x] Phase 2a: ink 기반 풀 TUI, 이미지 첨부 (`/image`)
@@ -453,7 +338,6 @@ bc config set-ui ink                        # 풀 TUI 복귀
 - [ ] v1.8.0 — write/edit 승인 게이트 (`y/n/v/q`), diff 미리보기
 - [ ] Phase 3c-2: Figma 실 fetch (URL → 노드 트리 → 컴포넌트 인텐트)
 - [ ] Phase 4: `bc gen component/page` (AST 편집 + 검증 루프), `/apply` diff 미리보기
-
 ## 라이선스
 
-MIT
+[MIT License](LICENSE)를 따릅니다.
