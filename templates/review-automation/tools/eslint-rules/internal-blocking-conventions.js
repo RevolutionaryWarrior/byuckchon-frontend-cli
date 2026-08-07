@@ -16,8 +16,8 @@ const LOCAL_LAYER_ORDER = [
   'hooks',
   'context',
   'components',
-  'layout',
-  'page',
+  'layouts',
+  'pages',
 ];
 
 function normalizeFilename(filename) {
@@ -964,14 +964,14 @@ module.exports = {
       if (
         hasJsx &&
         (filename.includes('/components/') ||
-          filename.includes('/layout/') ||
-          filename.includes('/page/'))
+          filename.includes('/layouts/') ||
+          filename.includes('/pages/'))
       ) {
         if (!PASCAL_CASE_PATTERN.test(baseName)) {
           report(programNode, '컴포넌트 파일명은 PascalCase여야 합니다.');
         }
 
-        if (filename.includes('/layout/') && !baseName.endsWith('Layout')) {
+        if (filename.includes('/layouts/') && !baseName.endsWith('Layout')) {
           report(
             programNode,
             '레이아웃 파일명은 용도 + Layout 형식이어야 합니다.',
@@ -1007,8 +1007,8 @@ module.exports = {
         hasJsx &&
         (filename.endsWith('.tsx') ||
           filename.includes('/components/') ||
-          filename.includes('/layout/') ||
-          filename.includes('/page/'));
+          filename.includes('/layouts/') ||
+          filename.includes('/pages/'));
       const shouldBeHook = filename.includes('/hooks/') && isHookName(baseName);
 
       if ((shouldBeComponent || shouldBeHook) && defaultExport) {
