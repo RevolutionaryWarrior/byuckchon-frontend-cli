@@ -27,7 +27,10 @@ export async function createApp({ appDir, config, scope }) {
 
   await createFolders(appDir, config);
   await createBaseFiles(appDir, config);
-  await scaffoldApiConventionDoc({ projectRoot: appDir, framework: config.framework });
+  await scaffoldApiConventionDoc({
+    projectRoot: appDir,
+    framework: config.framework,
+  });
   await createBcConfig(appDir, config);
 
   await createAppPackageJson(appDir, config, scope);
@@ -43,8 +46,8 @@ async function rm(target) {
 }
 
 /**
- * 워크스페이스 앱용 package.json. 모노레포에서는 React 버전을 하나로 통일하려고
- * (pnpm hoist 충돌 방지) react/react-dom 모두 19 계열로 맞춘다.
+ * 워크스페이스 앱용 package.json.
+ * 단일 프로젝트와 동일하게 Vite React는 React 18, Next는 React 19를 사용한다.
  */
 async function createAppPackageJson(appDir, config, scope) {
   const isReact = config.framework === 'react';
@@ -77,8 +80,8 @@ async function createAppPackageJson(appDir, config, scope) {
     type: 'module',
     scripts,
     dependencies: {
-      react: versions['next-react'],
-      'react-dom': versions['next-react-dom'],
+      react: isReact ? versions.react : versions['next-react'],
+      'react-dom': isReact ? versions['react-dom'] : versions['next-react-dom'],
       ...(isReact ? {} : { next: versions.next }),
       zustand: versions.zustand,
       ...(isReact
@@ -118,7 +121,10 @@ async function createAppPackageJson(appDir, config, scope) {
     },
   };
 
-  await write(path.join(appDir, 'package.json'), JSON.stringify(pkg, null, 2) + '\n');
+  await write(
+    path.join(appDir, 'package.json'),
+    JSON.stringify(pkg, null, 2) + '\n'
+  );
 }
 
 /**
@@ -154,7 +160,7 @@ export default [
     },
   },
 ];
-`,
+`
   );
 
   if (isReact) {
@@ -182,8 +188,8 @@ export default [
           include: ['src', 'vite.config.ts'],
         },
         null,
-        2,
-      ) + '\n',
+        2
+      ) + '\n'
     );
   } else {
     await write(
@@ -204,8 +210,8 @@ export default [
           exclude: ['node_modules'],
         },
         null,
-        2,
-      ) + '\n',
+        2
+      ) + '\n'
     );
   }
 }
