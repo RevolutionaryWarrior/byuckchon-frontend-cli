@@ -87,6 +87,7 @@ async function createAppPackageJson(appDir, config, scope) {
       ...(isReact
         ? {
             axios: versions.axios,
+            'react-router-dom': versions['react-router-dom'],
             '@tanstack/react-query': versions['@tanstack/react-query'],
           }
         : {}),
