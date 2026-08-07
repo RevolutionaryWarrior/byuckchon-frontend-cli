@@ -10,7 +10,7 @@ export async function createReadme(rootDir, config) {
 
 | 항목 | 내용 |
 |------|------|
-| Framework | ${isReact ? 'React 19' : 'Next.js 15 (App Router)'} |
+| Framework | ${isReact ? 'React 18' : 'Next.js 15 (App Router)'} |
 | Language | TypeScript |
 | Build Tool | ${isReact ? 'Vite' : 'Next.js built-in'} |
 | Styling | Tailwind CSS |
@@ -47,8 +47,8 @@ src/
 ├── components/    재사용 가능한 UI 컴포넌트${
     isReact
       ? `
-├── layout/        레이아웃 컴포넌트
-└── page/          페이지 컴포넌트`
+├── layouts/       레이아웃 컴포넌트
+└── pages/         페이지 컴포넌트`
       : `
 └── app/           Next.js App Router (layout, page 등)`
   }
@@ -61,7 +61,7 @@ ${
 각 레이어는 아래 방향으로만 import 해야 합니다.
 
 \`\`\`
-lib → store → api → hooks → context → components → layout → page
+lib → store → api → hooks → context → components → layouts → pages
 \`\`\`
 
 \`assets\`는 모든 레이어에서 자유롭게 참조 가능합니다.`
