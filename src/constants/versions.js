@@ -21,6 +21,7 @@ export const versions = {
   // State & Data
   zustand: '^5.0.3',
   axios: '^1.8.4',
+  'react-router-dom': '^7.5.0',
   '@tanstack/react-query': '^5.74.4',
 
   // Styling

@@ -43,6 +43,7 @@ export async function createPackageJson(rootDir, config) {
       ...(isReact
         ? {
             axios: versions.axios,
+            'react-router-dom': versions['react-router-dom'],
           }
         : {}),
       zod: versions.zod,
