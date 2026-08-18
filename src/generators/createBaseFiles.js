@@ -424,8 +424,9 @@ export default defineConfig({
   // src/App.css
   await write(
     path.join(rootDir, "src/App.css"),
-    `@import "./tokens.css";
-@import 'tailwindcss';
+    `@import 'tailwindcss';
+@import "@byuckchon-frontend/settings/motion";
+@import "./tokens.css";
 `
   );
   await write(path.join(rootDir, "src/tokens.css"), "");
@@ -593,8 +594,9 @@ export default config;
   // src/app/globals.css
   await write(
     path.join(rootDir, "src/app/globals.css"),
-    `@import "../tokens.css";
-@import 'tailwindcss';
+    `@import 'tailwindcss';
+@import "@byuckchon-frontend/settings/motion";
+@import "../tokens.css";
 `
   );
   await write(path.join(rootDir, "token.config.js"), TOKEN_CONFIG_JS);

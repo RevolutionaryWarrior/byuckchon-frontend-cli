@@ -10,6 +10,7 @@ export const BYUCKCHON_PACKAGES = [
   '@byuckchon-frontend/utils',
   '@byuckchon-frontend/basic-ui',
   '@byuckchon-frontend/core',
+  '@byuckchon-frontend/settings',
 ];
 
 async function hasPnpm() {
