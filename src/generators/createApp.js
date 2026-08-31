@@ -88,6 +88,8 @@ async function createAppPackageJson(appDir, config, scope) {
           }
         : {}),
       zod: versions.zod,
+      clsx: versions.clsx,
+      'tailwind-merge': versions['tailwind-merge'],
     },
     devDependencies: {
       [`@${scope}/config-eslint`]: 'workspace:*',

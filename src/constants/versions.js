@@ -27,6 +27,8 @@ export const versions = {
   tailwindcss: '^4.1.4',
   '@tailwindcss/vite': '^4.1.4',
   '@tailwindcss/postcss': '^4',
+  clsx: '^2.1.1',
+  'tailwind-merge': '^3.6.0',
 
   // Linting
   eslint: '^8.57.0',
