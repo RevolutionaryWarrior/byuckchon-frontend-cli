@@ -47,6 +47,8 @@ export async function createPackageJson(rootDir, config) {
           }
         : {}),
       zod: versions.zod,
+      clsx: versions.clsx,
+      'tailwind-merge': versions['tailwind-merge'],
     },
     devDependencies: {
       '@types/react': versions['@types/react'],

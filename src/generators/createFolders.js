@@ -12,6 +12,7 @@ const REACT_FOLDERS = [
   'src/assets/icons',
   'src/assets/images',
   'src/lib',
+  'src/lib/utils',
   'src/store',
   'src/api',
   'src/hooks',
@@ -34,6 +35,7 @@ const NEXT_FOLDERS = [
   'src/constant',
   'src/hooks',
   'src/lib',
+  'src/lib/utils',
   'src/providers',
 ];
 
@@ -50,7 +52,21 @@ export async function createFolders(rootDir, config) {
   }
 
   // 각 레이어에 placeholder 파일 생성
-  await writeFile(path.join(rootDir, 'src/lib/index.ts'), '// 유틸리티 함수, 상수, 헬퍼\n');
+  await writeFile(
+    path.join(rootDir, 'src/lib/utils/cn.ts'),
+    `import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+`,
+  );
+  await writeFile(
+    path.join(rootDir, 'src/lib/utils/index.ts'),
+    "export { cn } from './cn';\n",
+  );
+  await writeFile(path.join(rootDir, 'src/lib/index.ts'), "export * from './utils';\n");
   await writeFile(path.join(rootDir, 'src/hooks/index.ts'), '// 커스텀 훅\n');
   await writeFile(path.join(rootDir, 'src/components/index.ts'), '// 재사용 가능한 UI 컴포넌트\n');
 
