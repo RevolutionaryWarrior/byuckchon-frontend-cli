@@ -188,25 +188,34 @@ export async function adoptCommand(opts = {}) {
       projectRoot: reviewProjectRoot,
       projectType,
       overwrite: false,
+      // PR Check 는 스크립트 이름·브랜치·패키지 매니저를 전제하므로
+      // 기존 프로젝트에 말없이 깔면 CI 가 곧바로 실패한다. bc init 전용으로 둔다.
+      exclude: ['pr-check'],
     });
 
     if (reviewAutomation.workflows.length) {
       console.log(
         chalk.green(
-          `  ✓ ESLint Convention Review 설정 추가: ${path.join(reviewProjectRoot, '.github', 'workflows')}`,
+          `  ✓ PR 워크플로 추가: ${path.join(reviewProjectRoot, '.github', 'workflows')}`,
+        ),
+      );
+      console.log(chalk.dim(`    ${reviewAutomation.workflows.join(', ')}`));
+      console.log(
+        chalk.dim(
+          '    (PR Check 워크플로는 기존 프로젝트의 스크립트·브랜치 설정을 전제하므로 추가하지 않습니다)',
         ),
       );
     } else {
       console.log(
         chalk.dim(
-          `  ESLint Convention Review 설정 유지: ${path.join(reviewProjectRoot, '.github', 'workflows')} (이미 존재)`,
+          `  PR 워크플로 유지: ${path.join(reviewProjectRoot, '.github', 'workflows')} (이미 존재)`,
         ),
       );
     }
   } catch (error) {
     console.log(
       chalk.yellow(
-        `  ⚠ ESLint Convention Review 설정을 추가하지 못했습니다: ${error.message}`,
+        `  ⚠ PR 워크플로를 추가하지 못했습니다: ${error.message}`,
       ),
     );
   }

@@ -59,7 +59,9 @@ export async function createPackageJson(rootDir, config) {
       '@types/node': versions['@types/node'],
       '@trivago/prettier-plugin-sort-imports':
         versions['@trivago/prettier-plugin-sort-imports'],
-      // ESLint 플러그인은 @byuckchon-frontend/settings 가 의존성으로 들고 온다.
+      // eslint/prettier/tsconfig/tokens 설정과 motion CSS 가 모두 이 패키지를 참조한다.
+      // (ESLint 플러그인도 이 패키지가 의존성으로 들고 온다)
+      '@byuckchon-frontend/settings': versions['@byuckchon-frontend/settings'],
       eslint: versions.eslint,
       prettier: versions.prettier,
       'prettier-plugin-tailwindcss': versions['prettier-plugin-tailwindcss'],

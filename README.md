@@ -250,9 +250,13 @@ color는 `@theme`의 `--color-*`로, typography는 `@utility text-*`로, motion 
 
 ```text
 .github/workflows/eslint-convention-review.yml   # 컨벤션 인라인 댓글
-.github/workflows/pr-check.yml                   # lint / typecheck / build 통과 여부
+.github/workflows/pr-check.yml                   # lint / typecheck / build 통과 여부 (bc init 전용)
 tools/review.config.mjs
 ```
+
+`pr-check.yml` 은 `bc init` 으로 생성한 프로젝트에만 추가됩니다.
+스크립트 이름·대상 브랜치·패키지 매니저를 전제하기 때문에, 기존 프로젝트에
+`bc adopt` 할 때는 추가하지 않습니다. 필요하면 위 파일을 참고해 직접 만드세요.
 
 워크플로 템플릿은 프로젝트 유형에 맞는 것만 복사됩니다.
 (`<이름>.single.yml` / `<이름>.monorepo.yml` → `<이름>.yml`)

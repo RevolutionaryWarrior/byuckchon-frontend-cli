@@ -98,6 +98,8 @@ async function createAppPackageJson(appDir, config, scope) {
     devDependencies: {
       [`@${scope}/config-eslint`]: 'workspace:*',
       [`@${scope}/config-typescript`]: 'workspace:*',
+      // global.d.ts, App.css(motion), token.config.js 가 직접 참조한다.
+      '@byuckchon-frontend/settings': versions['@byuckchon-frontend/settings'],
       '@types/react': versions['@types/react'],
       '@types/react-dom': versions['@types/react-dom'],
       '@types/node': versions['@types/node'],

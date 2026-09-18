@@ -84,6 +84,8 @@ async function writeRootFiles(root, config, scope) {
       [config.appName]: `pnpm --filter @${scope}/${config.appName} dev`,
     },
     devDependencies: {
+      // 루트의 prettier.config.mjs 와 tsconfig.base.json 이 직접 참조한다.
+      '@byuckchon-frontend/settings': versions['@byuckchon-frontend/settings'],
       '@types/node': '^22.0.0',
       eslint: '^9.18.0',
       'eslint-config-prettier': '^10.1.8',
