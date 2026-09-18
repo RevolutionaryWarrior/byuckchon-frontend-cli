@@ -1,6 +1,8 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
+import { versions } from '../constants/versions.js';
+import { readSettingsAsset } from '../utils/settingsAssets.js';
 import { createApp } from './createApp.js';
 import { scaffoldReviewAutomation } from './scaffoldReviewAutomation.js';
 
@@ -102,58 +104,22 @@ packages:
 `,
   );
 
-  await writeJson(path.join(root, 'turbo.json'), {
-    $schema: 'https://turborepo.org/schema.json',
-    ui: 'tui',
-    globalDependencies: ['tsconfig.base.json', '.env', '.env.*', '!.env*.local'],
-    globalEnv: ['NODE_ENV', 'CI'],
-    tasks: {
-      build: {
-        dependsOn: ['^build'],
-        outputs: ['dist/**', 'build/**', '.next/**', '!.next/cache/**', 'out/**'],
-        inputs: [
-          '$TURBO_DEFAULT$',
-          '!**/*.md',
-          '!**/*.test.ts',
-          '!**/*.test.tsx',
-          '!**/*.spec.ts',
-          '!**/*.spec.tsx',
-        ],
-      },
-      dev: { cache: false, persistent: true },
-      lint: { dependsOn: ['^build'], outputs: [] },
-      typecheck: { dependsOn: ['^build'], outputs: ['.tsbuildinfo', '**/*.tsbuildinfo'] },
-      'tokens:build': { outputs: ['src/tokens.css'] },
-      clean: { cache: false },
-    },
-  });
+  // turbo / .npmrc / .nvmrc 는 참조 문법이 없어서 내용을 복사한다.
+  // 이후 settings 가 바뀌면 `npx byuckchon-settings-sync` 로 갱신한다.
+  await write(path.join(root, 'turbo.json'), await readSettingsAsset('project/turbo.json'));
 
+  // 공통 옵션은 @byuckchon-frontend/settings 가 관리한다.
+  // 이 파일은 모노레포 전용 예외를 얹는 자리로만 남긴다.
   await writeJson(path.join(root, 'tsconfig.base.json'), {
     $schema: 'https://json.schemastore.org/tsconfig',
-    display: `${name} Base`,
+    display: `${config.projectName} Base`,
+    extends: '@byuckchon-frontend/settings/tsconfig/base.json',
     compilerOptions: {
-      target: 'ES2022',
-      lib: ['ES2022'],
-      module: 'ESNext',
-      moduleResolution: 'Bundler',
-      strict: true,
       noUncheckedIndexedAccess: true,
       noImplicitOverride: true,
-      noFallthroughCasesInSwitch: true,
-      useUnknownInCatchVariables: true,
-      exactOptionalPropertyTypes: false,
-      esModuleInterop: true,
       allowSyntheticDefaultImports: true,
-      forceConsistentCasingInFileNames: true,
-      resolveJsonModule: true,
-      isolatedModules: true,
-      verbatimModuleSyntax: false,
-      skipLibCheck: true,
       incremental: true,
-      composite: false,
-      types: [],
     },
-    exclude: ['node_modules', 'dist', 'build', '.turbo', '.next', 'coverage'],
   });
 
   await writeJson(path.join(root, 'tsconfig.json'), {
@@ -162,42 +128,19 @@ packages:
     include: [],
   });
 
-  await write(
-    path.join(root, '.npmrc'),
-    `# pnpm 동작 설정
-# React 버전 통일 및 (향후 Expo/RN 도입 대비) hoisted linker 사용.
-node-linker=hoisted
+  await write(path.join(root, '.npmrc'), await readSettingsAsset('project/npmrc'));
 
-public-hoist-pattern[]=*react*
-public-hoist-pattern[]=*@types/*
-public-hoist-pattern[]=*eslint*
-public-hoist-pattern[]=*prettier*
-
-strict-peer-dependencies=false
-auto-install-peers=true
-save-exact=false
-save-prefix=^
-prefer-frozen-lockfile=true
-`,
-  );
-
-  await write(path.join(root, '.nvmrc'), '20\n');
+  await write(path.join(root, '.nvmrc'), await readSettingsAsset('project/nvmrc'));
 
   await write(
     path.join(root, 'prettier.config.mjs'),
-    `/** @type {import("prettier").Config} */
+    `// 포맷 규칙은 @byuckchon-frontend/settings 가 관리합니다.
+// 이 모노레포 전용 예외가 필요하면 펼쳐서 덮어쓰세요.
+import byuckchon from '@byuckchon-frontend/settings/prettier';
+
+/** @type {import("prettier").Config} */
 export default {
-  semi: true,
-  singleQuote: true,
-  trailingComma: 'all',
-  tabWidth: 2,
-  printWidth: 100,
-  arrowParens: 'always',
-  endOfLine: 'lf',
-  bracketSpacing: true,
-  bracketSameLine: false,
-  jsxSingleQuote: false,
-  plugins: ['prettier-plugin-tailwindcss'],
+  ...byuckchon,
   overrides: [
     {
       files: ['*.json', '*.md', '*.yml', '*.yaml'],
@@ -205,7 +148,7 @@ export default {
     },
   ],
 };
-`,
+`
   );
 
   await write(
@@ -313,106 +256,54 @@ async function writeConfigTypescript(root, scope) {
   const dir = path.join(root, 'packages', 'config-typescript');
   await fs.mkdir(dir, { recursive: true });
 
+  // 프리셋 본체는 @byuckchon-frontend/settings 가 관리한다.
+  // 이 패키지는 모노레포 전용 예외를 얹을 자리로만 남긴다.
   await writeJson(path.join(dir, 'package.json'), {
     name: `@${scope}/config-typescript`,
     version: '0.0.0',
     private: true,
-    description: `Shared TypeScript config presets for @${scope} apps & packages`,
+    description: 'settings 의 TypeScript 프리셋을 이 모노레포용으로 감싼 패키지',
     files: ['base.json', 'library.json', 'react.json', 'next.json', 'node.json'],
-  });
-
-  await writeJson(path.join(dir, 'base.json'), {
-    $schema: 'https://json.schemastore.org/tsconfig',
-    display: 'Base',
-    extends: '../../tsconfig.base.json',
-  });
-
-  await writeJson(path.join(dir, 'react.json'), {
-    $schema: 'https://json.schemastore.org/tsconfig',
-    display: 'React Web (Vite)',
-    extends: './base.json',
-    compilerOptions: {
-      lib: ['ES2022', 'DOM', 'DOM.Iterable'],
-      jsx: 'react-jsx',
-      moduleResolution: 'Bundler',
-      module: 'ESNext',
-      noEmit: true,
-      allowImportingTsExtensions: true,
-      useDefineForClassFields: true,
-      types: ['vite/client'],
-      noUncheckedIndexedAccess: false,
+    dependencies: {
+      '@byuckchon-frontend/settings': versions['@byuckchon-frontend/settings'],
     },
   });
 
-  await writeJson(path.join(dir, 'next.json'), {
+  const preset = (display, name) => ({
     $schema: 'https://json.schemastore.org/tsconfig',
-    display: 'Next.js (App Router)',
-    extends: './base.json',
-    compilerOptions: {
-      lib: ['ES2022', 'DOM', 'DOM.Iterable'],
-      jsx: 'preserve',
-      module: 'ESNext',
-      moduleResolution: 'Bundler',
-      noEmit: true,
-      allowJs: true,
-      incremental: true,
-      plugins: [{ name: 'next' }],
-      noUncheckedIndexedAccess: false,
-    },
+    display,
+    extends: `@byuckchon-frontend/settings/tsconfig/${name}.json`,
   });
 
-  await writeJson(path.join(dir, 'library.json'), {
-    $schema: 'https://json.schemastore.org/tsconfig',
-    display: 'Library (packages/*)',
-    extends: './base.json',
-    compilerOptions: {
-      declaration: true,
-      declarationMap: true,
-      sourceMap: true,
-      outDir: 'dist',
-      rootDir: 'src',
-      composite: true,
-    },
-  });
-
-  await writeJson(path.join(dir, 'node.json'), {
-    $schema: 'https://json.schemastore.org/tsconfig',
-    display: 'Node (scripts)',
-    extends: './base.json',
-    compilerOptions: {
-      lib: ['ES2022'],
-      module: 'NodeNext',
-      moduleResolution: 'NodeNext',
-      types: ['node'],
-    },
-  });
+  await writeJson(path.join(dir, 'base.json'), preset('Base', 'base'));
+  await writeJson(path.join(dir, 'react.json'), preset('React Web (Vite)', 'react'));
+  await writeJson(path.join(dir, 'next.json'), preset('Next.js (App Router)', 'next'));
+  await writeJson(path.join(dir, 'library.json'), preset('Library (packages/*)', 'library'));
+  await writeJson(path.join(dir, 'node.json'), preset('Node (scripts)', 'node'));
 }
 
 async function writeConfigEslint(root, scope) {
   const dir = path.join(root, 'packages', 'config-eslint');
   await fs.mkdir(dir, { recursive: true });
 
+  // 규칙 본체는 @byuckchon-frontend/settings 가 관리한다.
+  // 이 패키지는 모노레포 전용 예외를 얹을 자리로만 남긴다.
   await writeJson(path.join(dir, 'package.json'), {
     name: `@${scope}/config-eslint`,
     version: '0.0.0',
     private: true,
     type: 'module',
-    description: `Shared ESLint flat configs for @${scope} apps & packages`,
+    description: 'settings 의 ESLint 프리셋을 이 모노레포용으로 감싼 패키지',
     main: './base.js',
     exports: {
       '.': './base.js',
       './base': './base.js',
       './react': './react.js',
+      './next': './next.js',
     },
-    files: ['base.js', 'react.js'],
+    files: ['base.js', 'react.js', 'next.js'],
     dependencies: {
-      '@eslint/js': '^9.18.0',
-      'eslint-config-prettier': '^10.1.8',
-      'eslint-plugin-import': '^2.32.0',
-      'eslint-plugin-react': '^7.37.4',
-      'eslint-plugin-react-hooks': '^5.1.0',
-      globals: '^15.14.0',
-      'typescript-eslint': '^8.59.1',
+      '@byuckchon-frontend/settings': versions['@byuckchon-frontend/settings'],
     },
     peerDependencies: {
       eslint: '^9.0.0',
@@ -420,97 +311,17 @@ async function writeConfigEslint(root, scope) {
     },
   });
 
-  await write(
-    path.join(dir, 'base.js'),
-    `// @ts-check
-import js from '@eslint/js';
-import tseslint from 'typescript-eslint';
-import prettier from 'eslint-config-prettier';
-import importPlugin from 'eslint-plugin-import';
-import globals from 'globals';
+  const reexport = (name, named) => `// 규칙 본체는 @byuckchon-frontend/settings 가 관리합니다.
+// 이 모노레포에만 해당하는 예외는 아래 배열에 이어붙이세요.
+import byuckchon from '@byuckchon-frontend/settings/eslint/${name}';
 
-/**
- * 공통 ESLint flat config (TS 베이스).
- * @type {import("eslint").Linter.Config[]}
- */
-export const baseConfig = [
-  {
-    ignores: [
-      '**/node_modules/**',
-      '**/dist/**',
-      '**/build/**',
-      '**/out/**',
-      '**/.next/**',
-      '**/.turbo/**',
-      '**/coverage/**',
-      '**/*.d.ts',
-    ],
-  },
-  js.configs.recommended,
-  ...tseslint.configs.recommended,
-  {
-    languageOptions: {
-      ecmaVersion: 2022,
-      sourceType: 'module',
-      globals: { ...globals.es2022 },
-    },
-    plugins: { import: importPlugin },
-    rules: {
-      'no-console': ['warn', { allow: ['warn', 'error'] }],
-      '@typescript-eslint/consistent-type-imports': [
-        'warn',
-        { prefer: 'type-imports', fixStyle: 'inline-type-imports' },
-      ],
-      '@typescript-eslint/no-unused-vars': [
-        'warn',
-        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
-      ],
-    },
-  },
-  prettier,
-];
+/** @type {import("eslint").Linter.Config[]} */
+export const ${named} = [...byuckchon];
 
-export default baseConfig;
-`,
-  );
+export default ${named};
+`;
 
-  await write(
-    path.join(dir, 'react.js'),
-    `// @ts-check
-import react from 'eslint-plugin-react';
-import reactHooks from 'eslint-plugin-react-hooks';
-import globals from 'globals';
-
-import { baseConfig } from './base.js';
-
-/**
- * React (Vite/Next) 앱용 ESLint config.
- * @type {import("eslint").Linter.Config[]}
- */
-export const reactConfig = [
-  ...baseConfig,
-  {
-    files: ['**/*.{js,jsx,ts,tsx}'],
-    languageOptions: {
-      globals: { ...globals.browser, ...globals.es2022 },
-      parserOptions: { ecmaFeatures: { jsx: true } },
-    },
-    plugins: { react, 'react-hooks': reactHooks },
-    settings: { react: { version: 'detect' } },
-    rules: {
-      ...react.configs.recommended.rules,
-      ...react.configs['jsx-runtime'].rules,
-      ...reactHooks.configs.recommended.rules,
-      'react/prop-types': 'off',
-      'react/react-in-jsx-scope': 'off',
-      'react/no-unescaped-entities': 'off',
-      'react-hooks/rules-of-hooks': 'warn',
-      '@typescript-eslint/no-explicit-any': 'off',
-    },
-  },
-];
-
-export default reactConfig;
-`,
-  );
+  await write(path.join(dir, 'base.js'), reexport('base', 'baseConfig'));
+  await write(path.join(dir, 'react.js'), reexport('react', 'reactConfig'));
+  await write(path.join(dir, 'next.js'), reexport('next', 'nextConfig'));
 }

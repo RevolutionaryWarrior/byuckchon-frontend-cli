@@ -1,201 +1,77 @@
 import fs from "fs/promises";
+import { createRequire } from "node:module";
 import path from "path";
+
+// JSON import attributes 는 Node 22+ 라서, Node 18 지원을 위해 createRequire 로 읽는다.
+const require = createRequire(import.meta.url);
+const vscodeSettings = require("@byuckchon-frontend/settings/vscode");
+
+import { readSettingsAsset } from "../utils/settingsAssets.js";
 
 async function write(filePath, content) {
   await fs.writeFile(filePath, content, "utf-8");
 }
 
-const TOKEN_CONFIG_JS = `import StyleDictionary from "style-dictionary";
+const TOKEN_CONFIG_JS = `/**
+ * 디자이너가 넘긴 src/tokens.json 을 src/tokens.css 로 변환하는 설정.
+ *
+ *   npm run tokens:build
+ *
+ * 변환 규칙(color / typography / motion)은 @byuckchon-frontend/settings 가
+ * 관리한다. 규칙이 바뀌면 settings 버전만 올리면 되고 이 파일은 그대로 둔다.
+ * 프로젝트별 예외가 필요하면 defineTokenConfig({ ... }) 에 인자를 넘긴다.
+ */
+import { defineTokenConfig } from "@byuckchon-frontend/settings/tokens";
 
-// kebab-case 변환
-StyleDictionary.registerTransform({
-  name: "name/kebab",
-  type: "name",
-  transform: (token) =>
-    token.path
-      .join("-")
-      .replace(/([a-z])([A-Z])/g, "$1-$2")
-      .toLowerCase(),
-});
-
-// color는 Tailwind 유틸리티로, typography는 .text-* 클래스로 생성
-StyleDictionary.registerFormat({
-  name: "css/tailwind-theme",
-  format: ({ dictionary }) => {
-    let css = "";
-    const withPx = (value) =>
-      typeof value === "string" && /^\\d+(\\.\\d+)?$/.test(value)
-        ? \`\${value}px\`
-        : value;
-
-    css += "@theme {\\n";
-    dictionary.allTokens.forEach((token) => {
-      if (token.$type === "color") {
-        css += \`  --color-\${token.name}: \${token.$value};\\n\`;
-      }
-    });
-    css += "}\\n\\n";
-
-    css += "@layer components {\\n";
-    dictionary.allTokens.forEach((token) => {
-      if (token.$type === "typography" && token.$value) {
-        const typo = token.$value;
-        css += \`  .text-\${token.name} {\\n\`;
-        if (typo.fontSize) {
-          css += \`    font-size: \${withPx(typo.fontSize)};\\n\`;
-        }
-        if (typo.lineHeight) {
-          css += \`    line-height: \${withPx(typo.lineHeight)};\\n\`;
-        }
-        if (typo.letterSpacing) {
-          css += \`    letter-spacing: \${typo.letterSpacing};\\n\`;
-        }
-        if (typo.fontWeight) {
-          css += \`    font-weight: \${typo.fontWeight};\\n\`;
-        }
-        if (typo.fontFamily) {
-          css += \`    font-family: \${typo.fontFamily};\\n\`;
-        }
-        css += "  }\\n";
-      }
-    });
-    css += "}\\n";
-
-    return css;
-  },
-});
-
-export default {
-  source: ["src/tokens.json"],
-  platforms: {
-    css: {
-      transforms: ["name/kebab"], // 일단 attribute/cti 제거
-      buildPath: "src/",
-      files: [
-        {
-          destination: "tokens.css",
-          format: "css/tailwind-theme",
-        },
-      ],
-    },
-  },
-};
+export default defineTokenConfig();
 `;
 
 // ─── 공통 설정 파일 ────────────────────────────────────────────────────────────
 
 async function createPrettierConfig(rootDir) {
-  const config = {
-    semi: true,
-    trailingComma: "all",
-    singleQuote: true,
-    tabWidth: 2,
-    useTabs: false,
-    printWidth: 80,
-    plugins: [
-      "@trivago/prettier-plugin-sort-imports",
-      "prettier-plugin-tailwindcss",
-    ],
-    importOrder: ["^@core/(.*)$", "^@server/(.*)$", "^@ui/(.*)$", "^[./]"],
-    importOrderSeparation: true,
-    importOrderSortSpecifiers: true,
-  };
+  // 규칙 본체는 @byuckchon-frontend/settings 가 관리한다.
+  // 프로젝트는 참조만 하므로, 팀 표준이 바뀌면 settings 버전만 올리면 된다.
   await write(
-    path.join(rootDir, ".prettierrc"),
-    JSON.stringify(config, null, 2)
+    path.join(rootDir, "prettier.config.js"),
+    `import byuckchon from '@byuckchon-frontend/settings/prettier';
+
+/** 프로젝트 예외가 필요하면 펼쳐서 덮어쓰세요. (예: printWidth: 100) */
+export default byuckchon;
+`
   );
 }
 
 async function createEslintConfig(rootDir) {
   await write(
-    path.join(rootDir, ".eslintrc.cjs"),
-    `module.exports = {
-  env: {
-    browser: true,
-    es2022: true,
-    node: true,
-  },
-  extends: ['expo', 'eslint:recommended'],
-  plugins: ['unused-imports'],
-  rules: {
-    'unused-imports/no-unused-imports': 'error',
-    'unused-imports/no-unused-vars': [
-      'warn',
-      {
-        vars: 'all',
-        varsIgnorePattern: '^_',
-        args: 'after-used',
-        argsIgnorePattern: '^_',
-      },
-    ],
-    'react/self-closing-comp': [
-      'warn',
-      {
-        component: true,
-        html: true,
-      },
-    ],
-  },
-  settings: {
-    'import/resolver': {
-      typescript: {},
-    },
-  },
-};
+    path.join(rootDir, "eslint.config.js"),
+    `import byuckchon from '@byuckchon-frontend/settings/eslint/react';
+
+/**
+ * 규칙 본체는 @byuckchon-frontend/settings 가 관리합니다.
+ * 프로젝트 예외는 뒤에 이어붙이세요.
+ *
+ *   export default [...byuckchon, { rules: { 'import/order': 'off' } }];
+ */
+export default byuckchon;
 `
   );
 }
 
 async function createNextEslintConfig(rootDir) {
+  // next/core-web-vitals 는 설치된 next 버전과 짝을 이뤄야 해서 settings 가 들고 있지 않다.
+  // 프로젝트 쪽에서 합친다.
   await write(
-    path.join(rootDir, ".eslintrc.cjs"),
-    `// 현 파일이 eslint config type 을 따른다는 선언
-/** @type {import("eslint").Linter.Config} */
+    path.join(rootDir, "eslint.config.mjs"),
+    `import { FlatCompat } from '@eslint/eslintrc';
 
-module.exports = {
-  root: true,
+import byuckchon from '@byuckchon-frontend/settings/eslint/next';
 
-  // next.js 공식 eslint 규칙 적용
-  extends: ["next/core-web-vitals", "next/typescript"],
+const compat = new FlatCompat({ baseDirectory: import.meta.dirname });
 
-  // import 문 자동정렬, 유효성 검사, 경로 오류 방지
-  plugins: ["import"],
-
-  rules: {
-    "@typescript-eslint/no-explicit-any": "off",
-    "import/order": [
-      "error",
-      {
-        // builtin: node 내장 모듈, external: npm 패키지, internal: 프로젝트 내 모듈, parent: 상위 경로, sibling: 형제 경로, index: 인덱스 파일
-        groups: ["builtin", "external", "internal", "parent", "sibling", "index"],
-        // 특정 패턴 그룹에 속하는 모듈 순서 지정
-        pathGroups: [
-          {
-            pattern: "react",
-            group: "external",
-            position: "before",
-          },
-          {
-            pattern: "next/**",
-            group: "external",
-            position: "before",
-          },
-          {
-            pattern: "@/**",
-            group: "internal",
-          },
-        ],
-        // 중복 정렬 방지
-        pathGroupsExcludedImportTypes: ["react"],
-        // 알파벳 순서대로 오름차순 정렬
-        alphabetize: { order: "asc", caseInsensitive: true },
-      },
-    ],
-  },
-
-  // 정렬 제외 파일 목록
-  ignorePatterns: ["node_modules/", ".next/", "out/", "build/", "next-env.d.ts"],
-};
+export default [
+  ...compat.extends('next/core-web-vitals', 'next/typescript'),
+  ...byuckchon,
+];
 `
   );
 }
@@ -228,17 +104,13 @@ Thumbs.db
 npm-debug.log*
 yarn-error.log*
 
-# Additional ignores
-node_modules
-dist
-dist-ssr
-*.local
-*.md
-!README.md
+# bc CLI
 .bc/
-.env
-.env.production
 .history
+
+# Misc
+dist-ssr/
+*.local
 `;
 
   const nextExtra = `
@@ -254,27 +126,14 @@ out/
 }
 
 async function createVscodeSettings(rootDir) {
+  // settings.json 은 extends 가 없어서 참조가 불가능하다. 실제 파일이 있어야 한다.
+  // 그래서 settings 가 들고 있는 값을 "복사"하되, 나중에 팀 표준이 바뀌면
+  //   npx byuckchon-settings-sync vscode
+  // 로 다시 맞출 수 있게 한다. 프로젝트가 값을 고치는 것은 자유.
   await fs.mkdir(path.join(rootDir, ".vscode"), { recursive: true });
   await write(
     path.join(rootDir, ".vscode/settings.json"),
-    JSON.stringify(
-      {
-        "editor.defaultFormatter": "esbenp.prettier-vscode",
-        "editor.formatOnSave": true,
-        "eslint.validate": [
-          "javascript",
-          "typescript",
-          "javascriptreact",
-          "typescriptreact",
-        ],
-        "editor.codeActionsOnSave": {
-          "source.organizeImports": "always",
-          "source.fixAll.eslint": "always",
-        },
-      },
-      null,
-      2
-    )
+    JSON.stringify(vscodeSettings, null, 2) + "\n"
   );
 }
 
@@ -333,45 +192,27 @@ export default defineConfig({
 `
   );
 
-  // tsconfig.json
+  // tsconfig — 공통 옵션은 @byuckchon-frontend/settings 가 관리한다.
+  // 프로젝트에는 경로 alias 처럼 이 프로젝트에만 해당하는 것만 남긴다.
   await write(
     path.join(rootDir, "tsconfig.json"),
     JSON.stringify(
       {
         files: [],
-        references: [
-          { path: "./tsconfig.app.json" },
-          { path: "./tsconfig.node.json" },
-        ],
+        references: [{ path: "./tsconfig.app.json" }, { path: "./tsconfig.node.json" }],
       },
       null,
       2
-    )
+    ) + "\n"
   );
 
-  // tsconfig.app.json
   await write(
     path.join(rootDir, "tsconfig.app.json"),
     JSON.stringify(
       {
+        extends: "@byuckchon-frontend/settings/tsconfig/react.json",
         compilerOptions: {
           tsBuildInfoFile: "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
-          target: "ES2020",
-          useDefineForClassFields: true,
-          lib: ["ES2020", "DOM", "DOM.Iterable"],
-          module: "ESNext",
-          skipLibCheck: true,
-          moduleResolution: "bundler",
-          allowImportingTsExtensions: true,
-          isolatedModules: true,
-          moduleDetection: "force",
-          noEmit: true,
-          jsx: "react-jsx",
-          strict: true,
-          noUnusedLocals: true,
-          noUnusedParameters: true,
-          noFallthroughCasesInSwitch: true,
-          noUncheckedSideEffectImports: true,
           baseUrl: ".",
           paths: {
             "@/*": ["src/*"],
@@ -379,41 +220,31 @@ export default defineConfig({
             "@images/*": ["src/assets/images/*"],
           },
         },
-        include: ["src", "src/svg.d.ts"],
+        include: ["src"],
       },
       null,
       2
-    )
+    ) + "\n"
   );
 
-  // tsconfig.node.json
   await write(
     path.join(rootDir, "tsconfig.node.json"),
     JSON.stringify(
       {
+        extends: "@byuckchon-frontend/settings/tsconfig/node.json",
         compilerOptions: {
           tsBuildInfoFile: "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
-          target: "ES2022",
-          lib: ["ES2023"],
           module: "ESNext",
-          skipLibCheck: true,
-          moduleResolution: "bundler",
-          allowImportingTsExtensions: true,
-          isolatedModules: true,
-          moduleDetection: "force",
-          noEmit: true,
-          strict: true,
-          noUnusedLocals: true,
-          noUnusedParameters: true,
-          noFallthroughCasesInSwitch: true,
-          noUncheckedSideEffectImports: true,
+          moduleResolution: "Bundler",
         },
         include: ["vite.config.ts"],
       },
       null,
       2
-    )
+    ) + "\n"
   );
+
+  await write(path.join(rootDir, ".nvmrc"), await readSettingsAsset("project/nvmrc"));
 
   await createPrettierConfig(rootDir);
   await createEslintConfig(rootDir);
@@ -450,27 +281,7 @@ createRoot(document.getElementById('root')!).render(<App />);
 
   await write(
     path.join(rootDir, "src/global.d.ts"),
-    `declare module '*.svg' {
-  import React from 'react';
-  export const ReactComponent: React.FunctionComponent<
-    React.SVGProps<SVGSVGElement>
-  >;
-  const src: string;
-
-  export default src;
-}
-
-declare module '*.svg?react' {
-  import React from 'react';
-  const Component: React.FunctionComponent<React.SVGProps<SVGSVGElement>>;
-
-  export default Component;
-}
-
-declare module '*.webp' {
-  const value: any;
-  export = value;
-}
+    `/// <reference types="@byuckchon-frontend/settings/types/svg-vite" />
 `
   );
 
@@ -542,40 +353,25 @@ export default nextConfig;
     `User-agent: *\nDisallow: /\n`
   );
 
-  // tsconfig.json (Next.js)
+  // tsconfig (Next.js) — 공통 옵션은 settings 가 관리한다.
   await write(
     path.join(rootDir, "tsconfig.json"),
     JSON.stringify(
       {
+        extends: "@byuckchon-frontend/settings/tsconfig/next.json",
         compilerOptions: {
-          target: "ES2017",
-          lib: ["dom", "dom.iterable", "esnext"],
-          allowJs: true,
-          skipLibCheck: true,
-          strict: true,
-          noEmit: true,
-          esModuleInterop: true,
-          module: "esnext",
-          moduleResolution: "bundler",
-          resolveJsonModule: true,
-          isolatedModules: true,
-          jsx: "preserve",
-          incremental: true,
-          plugins: [{ name: "next" }],
+          baseUrl: ".",
           paths: { "@/*": ["./src/*"] },
         },
-        include: [
-          "next-env.d.ts",
-          "**/*.ts",
-          "**/*.tsx",
-          ".next/types/**/*.ts",
-        ],
+        include: ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
         exclude: ["node_modules"],
       },
       null,
       2
-    )
+    ) + "\n"
   );
+
+  await write(path.join(rootDir, ".nvmrc"), await readSettingsAsset("project/nvmrc"));
 
   await createPrettierConfig(rootDir);
   await createNextEslintConfig(rootDir);
@@ -671,39 +467,11 @@ export default function Error() {
 
   await write(
     path.join(rootDir, "src/global.d.ts"),
-    `declare module '*.svg' {
-  import React from 'react';
-  export const ReactComponent: React.FunctionComponent<
-    React.SVGProps<SVGSVGElement>
-  >;
-  const src: string;
-
-  export default src;
-}
-
-declare module '*.svg?react' {
-  import React from 'react';
-  const Component: React.FunctionComponent<React.SVGProps<SVGSVGElement>>;
-
-  export default Component;
-}
-
-declare module '*.webp' {
-  const value: any;
-  export = value;
-}
+    `/// <reference types="@byuckchon-frontend/settings/types/svg-next" />
 `
   );
 
-  await write(
-    path.join(rootDir, "src/types.d.ts"),
-    `declare module "*.svg" {
-  import React from "react";
-  const ReactComponent: React.FC<React.SVGProps<SVGSVGElement>>;
-  export default ReactComponent;
-}
-`
-  );
+  // src/types.d.ts 는 global.d.ts 와 *.svg 선언이 충돌해서 제거했다.
 }
 
 // ─── 진입점 ───────────────────────────────────────────────────────────────────

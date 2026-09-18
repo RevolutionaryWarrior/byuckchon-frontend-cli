@@ -101,10 +101,7 @@ async function createAppPackageJson(appDir, config, scope) {
       '@types/react': versions['@types/react'],
       '@types/react-dom': versions['@types/react-dom'],
       '@types/node': versions['@types/node'],
-      // 모노레포 앱은 flat config(@scope/config-eslint) 를 쓰므로 ESLint 9 필요.
-      // (단일 프로젝트의 eslintrc + eslint 8 과 별개)
-      eslint: '^9.18.0',
-      'eslint-plugin-unused-imports': versions['eslint-plugin-unused-imports'],
+      eslint: versions.eslint,
       prettier: versions.prettier,
       'prettier-plugin-tailwindcss': versions['prettier-plugin-tailwindcss'],
       'style-dictionary': versions['style-dictionary'],
@@ -137,32 +134,18 @@ async function applyMonorepoConventions(appDir, config, scope) {
   const isReact = config.framework === 'react';
 
   // 루트에서 관리하는 설정들은 앱 레벨에서 제거.
-  await rm(path.join(appDir, '.eslintrc.cjs'));
-  await rm(path.join(appDir, '.prettierrc'));
+  await rm(path.join(appDir, 'eslint.config.js'));
+  await rm(path.join(appDir, 'eslint.config.mjs'));
+  await rm(path.join(appDir, 'prettier.config.js'));
   await rm(path.join(appDir, '.gitignore'));
   await rm(path.join(appDir, '.vscode'));
 
-  // 공유 ESLint 프리셋을 extends 하는 flat config.
+  // 공유 ESLint 프리셋을 그대로 쓴다.
+  // 규칙 본체는 @byuckchon-frontend/settings 가 관리하고,
+  // 이 모노레포 전용 예외는 packages/config-eslint 에서 얹는다.
   await write(
     path.join(appDir, 'eslint.config.mjs'),
-    `import { reactConfig } from '@${scope}/config-eslint/react';
-import unusedImports from 'eslint-plugin-unused-imports';
-
-export default [
-  ...reactConfig,
-  {
-    plugins: { 'unused-imports': unusedImports },
-    rules: {
-      'no-unused-vars': 'off',
-      '@typescript-eslint/no-unused-vars': 'off',
-      'unused-imports/no-unused-imports': 'error',
-      'unused-imports/no-unused-vars': [
-        'warn',
-        { vars: 'all', varsIgnorePattern: '^_', args: 'after-used', argsIgnorePattern: '^_' },
-      ],
-    },
-  },
-];
+    `export { default } from '@${scope}/config-eslint/${isReact ? 'react' : 'next'}';
 `
   );
 
@@ -176,11 +159,8 @@ export default [
         {
           extends: `@${scope}/config-typescript/react.json`,
           compilerOptions: {
+            // 공통 옵션은 config-typescript → settings 프리셋에 있다.
             tsBuildInfoFile: './node_modules/.tmp/tsconfig.tsbuildinfo',
-            noUnusedLocals: true,
-            noUnusedParameters: true,
-            noUncheckedSideEffectImports: true,
-            moduleDetection: 'force',
             baseUrl: '.',
             paths: {
               '@/*': ['src/*'],

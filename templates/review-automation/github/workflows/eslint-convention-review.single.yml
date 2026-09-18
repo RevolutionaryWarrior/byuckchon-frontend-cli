@@ -21,7 +21,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: npm
 
       - name: 의존성 설치
@@ -34,11 +34,11 @@ jobs:
           REPO: ${{ github.repository }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          npx eslint . --ext ts,tsx --rulesdir tools/eslint-rules \
-            --rule 'internal-blocking-conventions:error' \
-            --rule 'internal-warning-conventions:warn' \
-            -f tools/eslint-rules/internal-rdjson-formatter.js \
+          npx eslint . \
+            --config tools/review.config.mjs \
+            --no-error-on-unmatched-pattern \
+            -f node_modules/@byuckchon-frontend/settings/src/eslint/internal-rdjson-formatter.js \
             -o /tmp/eslint-conventions.rdjson || true
-          node tools/post-eslint-review-comments.cjs \
+          npx --no-install byuckchon-eslint-review-comments \
             /tmp/eslint-conventions.rdjson \
             eslint-conventions
