@@ -1,0 +1,53 @@
+# npm 자동 배포
+#
+# main 에 머지되면 changesets 가 쌓인 changeset 을 모아 "Version Packages" PR 을 만들고,
+# 그 PR 을 머지하면 버전이 오르면서 npm 에 자동으로 배포됩니다.
+# 로컬에서 npm publish 를 직접 실행할 필요가 없습니다. (2FA OTP 입력도 불필요)
+#
+# 필요한 저장소 시크릿:
+#   NPM_TOKEN — npmjs.com 의 Granular Access Token
+#               · byuckchon-frontend-cli 에 Read and write 권한
+#               · "Bypass two-factor authentication" 활성화 (없으면 2FA 로 실패)
+
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: "https://registry.npmjs.org/"
+          cache: npm
+
+      - name: 의존성 설치
+        run: npm ci
+
+      - name: Version PR 생성 또는 배포
+        uses: changesets/action@v1
+        with:
+          version: npm run version-packages
+          publish: npm run release
+          commit: "chore: version packages"
+          title: "chore: version packages"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
