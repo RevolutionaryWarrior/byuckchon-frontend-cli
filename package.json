@@ -1,6 +1,6 @@
 {
   "name": "byuckchon-frontend-cli",
-  "version": "1.9.7",
+  "version": "1.9.8",
   "description": "Byuckchon Frontend Workbench — project starter + AI chat + codebase RAG + OpenAPI codegen",
   "type": "module",
   "engines": {
@@ -14,7 +14,9 @@
     "start": "node bin/index.js",
     "chat": "node bin/index.js chat",
     "init": "node bin/index.js init",
-    "config": "node bin/index.js config show"
+    "config": "node bin/index.js config show",
+    "release": "changeset publish",
+    "version-packages": "changeset version"
   },
   "dependencies": {
     "@byuckchon-frontend/settings": "^1.6.0",
@@ -66,5 +68,8 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/RevolutionaryWarrior/byuckchon-frontend-cli.git"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.29.8"
   }
 }
