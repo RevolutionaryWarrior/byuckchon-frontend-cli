@@ -16,6 +16,8 @@ export async function createPackageJson(rootDir, config) {
           dev: 'vite',
           build: 'tsc -b && vite build',
           'tokens:build': 'style-dictionary build --config token.config.js',
+          // PR Check workflow 가 lint / typecheck / build 를 각각 호출한다.
+          typecheck: 'tsc -b',
           lint: 'eslint . --ext ts,tsx',
           preview: 'vite preview',
           format:
@@ -27,8 +29,9 @@ export async function createPackageJson(rootDir, config) {
           dev: 'next dev',
           build: 'next build',
           'tokens:build': 'style-dictionary build --config token.config.js',
+          typecheck: 'tsc --noEmit',
           start: 'next start',
-          lint: 'next lint',
+          lint: 'eslint .',
           format:
             'prettier --write "src/**/*.{ts,tsx,css}" "tools/**/*.{js,cjs,json,md}"',
           'format:check':
@@ -56,14 +59,10 @@ export async function createPackageJson(rootDir, config) {
       '@types/node': versions['@types/node'],
       '@trivago/prettier-plugin-sort-imports':
         versions['@trivago/prettier-plugin-sort-imports'],
+      // eslint/prettier/tsconfig/tokens 설정과 motion CSS 가 모두 이 패키지를 참조한다.
+      // (ESLint 플러그인도 이 패키지가 의존성으로 들고 온다)
+      '@byuckchon-frontend/settings': versions['@byuckchon-frontend/settings'],
       eslint: versions.eslint,
-      'eslint-config-expo': versions['eslint-config-expo'],
-      'eslint-import-resolver-typescript':
-        versions['eslint-import-resolver-typescript'],
-      'eslint-plugin-import': versions['eslint-plugin-import'],
-      'eslint-plugin-react': versions['eslint-plugin-react'],
-      'eslint-plugin-react-hooks': versions['eslint-plugin-react-hooks'],
-      'eslint-plugin-unused-imports': versions['eslint-plugin-unused-imports'],
       prettier: versions.prettier,
       'prettier-plugin-tailwindcss': versions['prettier-plugin-tailwindcss'],
       'style-dictionary': versions['style-dictionary'],
@@ -72,9 +71,6 @@ export async function createPackageJson(rootDir, config) {
       ...(isReact
         ? {
             '@tailwindcss/vite': versions['@tailwindcss/vite'],
-            '@typescript-eslint/eslint-plugin':
-              versions['@typescript-eslint/eslint-plugin'],
-            '@typescript-eslint/parser': versions['@typescript-eslint/parser'],
             '@vitejs/plugin-react': versions['@vitejs/plugin-react'],
             vite: versions.vite,
             'vite-plugin-svgr': versions['vite-plugin-svgr'],
@@ -83,6 +79,7 @@ export async function createPackageJson(rootDir, config) {
             '@tailwindcss/postcss': versions['@tailwindcss/postcss'],
             '@svgr/webpack': versions['@svgr/webpack'],
             'eslint-config-next': versions['eslint-config-next'],
+            '@eslint/eslintrc': versions['@eslint/eslintrc'],
           }),
     },
   };

@@ -225,18 +225,51 @@ https://www.figma.com/design/.../?node-id=12-34
 | **Components** 화 (♦ 마름모 아이콘)     | 반복 UI 가 component 면 모델이 "이거 디자인 시스템 컴포넌트구나" 인식 → 코드에서도 재사용 컴포넌트를 만듭니다. |
 | frame 별로 **"Copy link to selection"** | 일반 share link 는 파일 전체. 특정 frame URL 을 받아야 AI 가 그것만 정확히 가져옵니다. |
 
+### 디자인 토큰 빌드
+
+`bc init`으로 생성한 프로젝트에는 토큰 변환 설정이 함께 들어갑니다.
+
+```text
+token.config.js     # @byuckchon-frontend/settings/tokens 프리셋을 사용
+src/tokens.json     # 디자이너가 Figma(Tokens Studio)에서 export 한 파일을 여기에 덮어씀
+src/tokens.css      # 아래 명령으로 자동 생성 (직접 수정하지 않음)
+```
+
+```bash
+npm run tokens:build
+```
+
+color는 `@theme`의 `--color-*`로, typography는 `@utility text-*`로, motion 등 나머지 토큰은
+`:root` 변수로 출력됩니다. duration 값이 단위 없는 숫자면 `ms`가 자동으로 붙고, settings에 없는
+`--motion-*` 이름이 있으면 경고가 나옵니다. 변환 규칙은 `@byuckchon-frontend/settings`가
+관리하므로, 규칙이 바뀌면 패키지 버전만 올리면 기존 프로젝트에도 그대로 반영됩니다.
+
 ### ESLint Convention Review
 
 `bc init`과 `bc adopt`는 프로젝트 루트에 아래 파일을 준비합니다.
 
 ```text
-.github/workflows/eslint-convention-review.yml
-tools/eslint-rules/
-tools/post-eslint-review-comments.cjs
+.github/workflows/eslint-convention-review.yml   # 컨벤션 인라인 댓글
+.github/workflows/pr-check.yml                   # lint / typecheck / build 통과 여부 (bc init 전용)
+tools/review.config.mjs
 ```
+
+`pr-check.yml` 은 `bc init` 으로 생성한 프로젝트에만 추가됩니다.
+스크립트 이름·대상 브랜치·패키지 매니저를 전제하기 때문에, 기존 프로젝트에
+`bc adopt` 할 때는 추가하지 않습니다. 필요하면 위 파일을 참고해 직접 만드세요.
+
+워크플로 템플릿은 프로젝트 유형에 맞는 것만 복사됩니다.
+(`<이름>.single.yml` / `<이름>.monorepo.yml` → `<이름>.yml`)
+단일 프로젝트는 npm, 모노레포는 pnpm + turbo 기준으로 만들어집니다.
+
+복사된 파일이므로 **프로젝트 소유**입니다. 대상 브랜치나 단계를 자유롭게 고치세요.
+settings 를 올려도 이 파일은 바뀌지 않습니다.
 
 PR이 `dev` 브랜치를 대상으로 할 때, workflow가 기계적으로 판별 가능한 규칙을 검사하고
 변경 줄에 댓글을 게시합니다.
+
+컨벤션 규칙과 댓글 게시 스크립트는 `@byuckchon-frontend/settings`가 제공합니다.
+프로젝트에 규칙 사본을 두지 않으므로, 규칙이 바뀌면 settings 버전만 올리면 됩니다.
 
 | 구분 | 담당 | 결과 |
 | --- | --- | --- |
@@ -317,8 +350,9 @@ bc chat --resume <session-id>
 - 기존 모노레포에 `bc adopt`를 적용할 때, 모노레포용 `review.config.mjs`는
   `packages/config-eslint/react.js` 구조를 전제로 합니다. ESLint 설정 구조가 다르면 해당 import를
   프로젝트에 맞게 조정해야 합니다.
-- AI Code Review와 typecheck·lint·build·test를 담당하는 PR Check workflow는 현재 자동 생성 대상이
-  아닙니다. 팀의 AI 제공자·테스트 전략에 맞춰 별도로 추가해야 합니다.
+- AI Code Review workflow는 자동 생성 대상이 아닙니다. 팀의 AI 제공자에 맞춰 별도로 추가해야 합니다.
+- PR Check workflow는 lint · typecheck · build 만 실행합니다. 테스트는 팀의 전략에 맞춰
+  생성된 `pr-check.yml` 에 단계를 추가하세요.
 
 ## 제품 로드맵
 

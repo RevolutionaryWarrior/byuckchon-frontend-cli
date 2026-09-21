@@ -7,10 +7,37 @@ const TEMPLATE_ROOT = path.resolve(
   '../../templates/review-automation',
 );
 
-const ESLINT_WORKFLOW_BY_PROJECT_TYPE = {
-  single: 'eslint-convention-review.single.yml',
-  monorepo: 'eslint-convention-review.monorepo.yml',
-};
+const PROJECT_TYPES = ['single', 'monorepo'];
+
+/**
+ * 워크플로 템플릿 이름 규칙
+ *   `<이름>.single.yml` / `<이름>.monorepo.yml` → 유형이 맞는 쪽만 `<이름>.yml` 로 복사
+ *   `<이름>.yml`                                → 유형과 무관하게 항상 복사
+ *
+ * @param {string[]} fileNames 템플릿 디렉터리의 파일 목록
+ * @param {'single' | 'monorepo'} projectType
+ * @returns {Array<{ source: string, target: string }>}
+ */
+function selectWorkflows(fileNames, projectType, exclude = []) {
+  const selected = [];
+
+  for (const fileName of fileNames) {
+    if (!fileName.endsWith('.yml')) continue;
+
+    const withoutExt = fileName.slice(0, -'.yml'.length);
+    const suffix = PROJECT_TYPES.find((type) => withoutExt.endsWith(`.${type}`));
+    const baseName = suffix
+      ? withoutExt.slice(0, -(suffix.length + 1))
+      : withoutExt;
+
+    if (exclude.includes(baseName)) continue;
+    if (suffix && suffix !== projectType) continue;
+
+    selected.push({ source: fileName, target: `${baseName}.yml` });
+  }
+
+  return selected;
+}
 
 function shouldCopyTemplateFile(source) {
   return path.basename(source) !== '.DS_Store';
@@ -38,23 +65,24 @@ async function copyFileIfAllowed(source, target, overwrite) {
  * 프로젝트 루트에 PR 리뷰 자동화 파일을 생성한다.
  *
  * - tools/ 는 ESLint convention rule 및 PR 댓글 게시 스크립트를 제공한다.
- * - .github/workflows/ 는 프로젝트 유형에 맞는 ESLint workflow 하나와
- *   공통 workflow(AI Code Review, PR Check 등)를 제공한다.
+ * - .github/workflows/ 는 프로젝트 유형에 맞는 워크플로를 제공한다.
+ *   템플릿 이름이 `<이름>.single.yml` / `<이름>.monorepo.yml` 이면 유형이 맞는 쪽만
+ *   `<이름>.yml` 로 복사되고, 접미사가 없으면 유형과 무관하게 복사된다.
  *
  * @param {object} args
  * @param {string} args.projectRoot 새로 생성한 프로젝트의 절대 경로
  * @param {'single' | 'monorepo'} args.projectType 생성할 프로젝트 유형
  * @param {boolean} [args.overwrite=true] 기존 파일을 템플릿으로 덮어쓸지
+ * @param {string[]} [args.exclude=[]] 제외할 워크플로 이름 (확장자·유형 접미사 제외)
  * @returns {Promise<{ toolsDir: string, workflows: string[] }>}
  */
 export async function scaffoldReviewAutomation({
   projectRoot,
   projectType,
   overwrite = true,
+  exclude = [],
 }) {
-  const eslintWorkflow = ESLINT_WORKFLOW_BY_PROJECT_TYPE[projectType];
-
-  if (!eslintWorkflow) {
+  if (!PROJECT_TYPES.includes(projectType)) {
     throw new Error(`지원하지 않는 프로젝트 유형입니다: ${projectType}`);
   }
 
@@ -72,33 +100,15 @@ export async function scaffoldReviewAutomation({
   await fs.mkdir(workflowsTargetDir, { recursive: true });
 
   const workflowFiles = await fs.readdir(workflowsTemplateDir);
-  const commonWorkflows = workflowFiles.filter(
-    (fileName) =>
-      fileName.endsWith('.yml') &&
-      !fileName.startsWith('eslint-convention-review.'),
-  );
   const copiedWorkflows = [];
 
-  for (const fileName of commonWorkflows) {
+  for (const { source, target } of selectWorkflows(workflowFiles, projectType, exclude)) {
     const copied = await copyFileIfAllowed(
-      path.join(workflowsTemplateDir, fileName),
-      path.join(workflowsTargetDir, fileName),
+      path.join(workflowsTemplateDir, source),
+      path.join(workflowsTargetDir, target),
       overwrite,
     );
-    if (copied) copiedWorkflows.push(fileName);
-  }
-
-  const eslintWorkflowTarget = path.join(
-    workflowsTargetDir,
-    'eslint-convention-review.yml',
-  );
-  const copiedEslintWorkflow = await copyFileIfAllowed(
-    path.join(workflowsTemplateDir, eslintWorkflow),
-    eslintWorkflowTarget,
-    overwrite,
-  );
-  if (copiedEslintWorkflow) {
-    copiedWorkflows.push('eslint-convention-review.yml');
+    if (copied) copiedWorkflows.push(target);
   }
 
   return { toolsDir: toolsTargetDir, workflows: copiedWorkflows };

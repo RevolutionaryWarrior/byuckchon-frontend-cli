@@ -1,0 +1,51 @@
+# PR Check — 모노레포
+#
+# 기계적인 컨벤션은 ESLint Convention Review workflow 가 인라인 댓글로 알려주고,
+# 이 workflow 는 "머지해도 되는가"(lint / typecheck / build 성공 여부)를 판정합니다.
+#
+# turbo 가 변경된 패키지만 골라 실행하고 캐시를 재사용합니다.
+# 프로젝트 사정에 맞게 자유롭게 수정하세요. 이 파일은 프로젝트 소유입니다.
+
+name: PR Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - dev
+
+concurrency:
+  group: pr-check-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint · Typecheck · Build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # turbo 가 변경 범위를 계산할 수 있도록 히스토리를 가져옵니다.
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: 의존성 설치
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build

@@ -1,52 +1,16 @@
+/**
+ * 검증된 스택 버전 매트릭스.
+ *
+ * 본체는 @byuckchon-frontend/settings 가 관리한다.
+ * 여기서는 settings 자신의 버전만 얹는다 — 자기 자신의 버전을 자기가 들고 있으면
+ * 어긋나기 때문에, CLI 와 함께 설치된 settings 의 실제 버전을 읽어서 쓴다.
+ */
+
+import { versions as shared } from '@byuckchon-frontend/settings/versions';
+
+import { settingsVersion } from '../utils/settingsAssets.js';
+
 export const versions = {
-  // Core frameworks
-  react: '^18.3.1',
-  'react-dom': '^18.3.1',
-  'next-react': '^19.2.1',
-  'next-react-dom': '^19.2.1',
-  next: '15.1.9',
-
-  // Build tool (React only)
-  vite: '^6.0.0',
-  '@vitejs/plugin-react': '^4.3.0',
-  'vite-plugin-svgr': '^4.3.0',
-  '@svgr/webpack': '^8.1.0',
-
-  // TypeScript
-  typescript: '^5.7.0',
-  '@types/react': '^18.3.3',
-  '@types/react-dom': '^18.3.0',
-  '@types/node': '^22.0.0',
-
-  // State & Data
-  zustand: '^5.0.3',
-  axios: '^1.8.4',
-  'react-router-dom': '^7.5.0',
-  '@tanstack/react-query': '^5.74.4',
-
-  // Styling
-  tailwindcss: '^4.1.4',
-  '@tailwindcss/vite': '^4.1.4',
-  '@tailwindcss/postcss': '^4',
-  clsx: '^2.1.1',
-  'tailwind-merge': '^3.6.0',
-
-  // Linting
-  eslint: '^8.57.0',
-  'eslint-config-expo': '^8.0.0',
-  'eslint-config-next': '^15.0.0',
-  'eslint-import-resolver-typescript': '^3.6.0',
-  'eslint-plugin-import': '^2.29.0',
-  'eslint-plugin-react': '^7.34.0',
-  'eslint-plugin-react-hooks': '^4.6.0',
-  '@typescript-eslint/eslint-plugin': '^7.0.0',
-  '@typescript-eslint/parser': '^7.0.0',
-
-  // Formatting
-  prettier: '^3.3.0',
-  'prettier-plugin-tailwindcss': '^0.6.11',
-  'style-dictionary': '^5.4.0',
-  zod: '^3.24.3',
-  '@trivago/prettier-plugin-sort-imports': '^5.2.2',
-  'eslint-plugin-unused-imports': '^4.1.4',
+  ...shared,
+  '@byuckchon-frontend/settings': `^${settingsVersion()}`,
 };

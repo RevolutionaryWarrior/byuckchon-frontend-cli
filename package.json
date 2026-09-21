@@ -17,6 +17,7 @@
     "config": "node bin/index.js config show"
   },
   "dependencies": {
+    "@byuckchon-frontend/settings": "^1.6.0",
     "@ai-sdk/anthropic": "^3.0.85",
     "@ai-sdk/openai": "^3.0.73",
     "ai": "^6.0.208",
