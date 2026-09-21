@@ -1,0 +1,44 @@
+# PR 본문에 커밋 내역을 자동으로 채워 넣습니다.
+#
+# 사람이 쓴 내용은 건드리지 않고, 아래 마커 사이만 갱신합니다.
+#   <!-- byuckchon:commits:start --> ~ <!-- byuckchon:commits:end -->
+# 마커가 없으면 본문 끝에 한 번 덧붙입니다.
+#
+# 스크립트는 @byuckchon-frontend/settings 가 제공합니다.
+# 전체 의존성 설치 없이 이 패키지만 받아 실행합니다.
+
+name: PR Description
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: pr-description-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  describe:
+    name: 커밋 내역 반영
+    # changeset 릴리즈 PR 처럼 봇이 연 PR 은 본문을 그대로 둔다.
+    if: ${{ !endsWith(github.event.pull_request.user.login, '[bot]') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: PR 본문 갱신
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          VERSION=$(node -p "const p=require('./package.json'); (p.dependencies?.['@byuckchon-frontend/settings'] ?? p.devDependencies?.['@byuckchon-frontend/settings'] ?? 'latest')")
+          npx --yes --package "@byuckchon-frontend/settings@${VERSION}" byuckchon-pr-description

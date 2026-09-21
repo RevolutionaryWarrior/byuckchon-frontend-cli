@@ -251,6 +251,8 @@ color는 `@theme`의 `--color-*`로, typography는 `@utility text-*`로, motion 
 ```text
 .github/workflows/eslint-convention-review.yml   # 컨벤션 인라인 댓글
 .github/workflows/pr-check.yml                   # lint / typecheck / build 통과 여부 (bc init 전용)
+.github/workflows/pr-description.yml             # 커밋 내역을 PR 본문에 반영
+.github/pull_request_template.md
 tools/review.config.mjs
 ```
 
@@ -276,6 +278,24 @@ PR이 `dev` 브랜치를 대상으로 할 때, workflow가 기계적으로 판�
 | 일반 lint | 기존 ESLint 규칙 | Actions annotation |
 | Convention Review | 파일명, export 방식, boolean 변수명 등 | PR 인라인 `BLOCKING` 또는 `WARNING` 댓글 |
 | AI 리뷰 | 설계·예외 처리·비즈니스 판단 | 별도 AI 리뷰 workflow에서 구성 |
+
+### PR 본문 자동 작성
+
+`pr-description.yml` 이 PR 의 커밋을 타입별로 묶어 description 에 채워 넣습니다.
+
+```markdown
+### ✨ 기능
+- **settings** — tsconfig 프리셋 추가 (a1b2c3d)
+
+### 🐛 수정
+- letterSpacing % → em 변환 (b2c3d4e)
+```
+
+사람이 쓴 내용은 건드리지 않고 `<!-- byuckchon:commits:start -->` 마커 사이만 갱신하며,
+커밋을 추가로 푸시하면 목록도 따라 갱신됩니다. 머지 커밋은 제외하고, 컨벤션을 안 지킨
+커밋은 버리지 않고 "분류 없음"으로 모읍니다.
+
+생성되는 `.github/pull_request_template.md` 에 마커가 미리 들어 있습니다.
 
 같은 지적은 숨김 marker를 기준으로 중복 게시하지 않고, 메시지가 바뀌면 기존 댓글을 갱신합니다.
 모노레포에서는 workflow와 `tools/`가 루트에 한 번만 존재하며, PR에서 변경된 TypeScript 파일을

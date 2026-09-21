@@ -74,7 +74,7 @@ async function copyFileIfAllowed(source, target, overwrite) {
  * @param {'single' | 'monorepo'} args.projectType 생성할 프로젝트 유형
  * @param {boolean} [args.overwrite=true] 기존 파일을 템플릿으로 덮어쓸지
  * @param {string[]} [args.exclude=[]] 제외할 워크플로 이름 (확장자·유형 접미사 제외)
- * @returns {Promise<{ toolsDir: string, workflows: string[] }>}
+ * @returns {Promise<{ toolsDir: string, workflows: string[], pullRequestTemplate: boolean }>}
  */
 export async function scaffoldReviewAutomation({
   projectRoot,
@@ -111,5 +111,16 @@ export async function scaffoldReviewAutomation({
     if (copied) copiedWorkflows.push(target);
   }
 
-  return { toolsDir: toolsTargetDir, workflows: copiedWorkflows };
+  // PR 템플릿 — 커밋 내역이 채워질 마커를 품고 있다.
+  const pullRequestTemplate = await copyFileIfAllowed(
+    path.join(TEMPLATE_ROOT, 'github', 'pull_request_template.md'),
+    path.join(projectRoot, '.github', 'pull_request_template.md'),
+    overwrite,
+  );
+
+  return {
+    toolsDir: toolsTargetDir,
+    workflows: copiedWorkflows,
+    pullRequestTemplate,
+  };
 }
