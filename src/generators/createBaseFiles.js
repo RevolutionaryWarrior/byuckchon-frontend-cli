@@ -26,6 +26,116 @@ import { defineTokenConfig } from "@byuckchon-frontend/settings/tokens";
 export default defineTokenConfig();
 `;
 
+// ─── AI 에이전트 가이드 ────────────────────────────────────────────────────────
+
+/**
+ * AGENTS.md 를 만든다. Codex 와 bc chat 이 이 이름을 기본으로 찾고,
+ * CLAUDE.md 는 이 파일을 import 하는 한 줄짜리로 둬서 문서를 하나만 관리한다.
+ *
+ * 매 세션 컨텍스트에 실리므로 짧게 유지한다. 상세 API 는 각 패키지 README 로 넘긴다.
+ */
+export function agentsDoc(framework) {
+  const isReact = framework === "react";
+
+  return `# 작업 규칙
+
+이 프로젝트에서 코드를 작성할 때 지켜야 할 것들입니다.
+
+## 1. 사내 패키지를 먼저 쓴다
+
+직접 구현하기 전에 아래 패키지에 이미 있는지 **반드시 먼저 확인하세요.**
+같은 기능을 새로 만들면 유지보수 비용이 프로젝트 수만큼 늘어납니다.
+
+| 패키지 | 무엇이 있나 |
+| --- | --- |
+| \`@byuckchon-frontend/hooks\` | useDebounce, useThrottle, useTimer, useInfiniteScroll, useIntersectionObserver, useDetectClose, useAutoFocus, useFileUpload, usePagination, usePullToRefresh, useScrollTop, useCheckList, useMonthCalendar, useVisibilityEvent, usePasswordVisibility, useImpressionRef, useInstallPWA, useScrollToSelectedItem |
+| \`@byuckchon-frontend/utils\` | 포맷(formatData), 검증(validate), 에러 처리(handleError), 쿼리 파라미터(filterParams), userAgent, sanitizeHtml, dateUtils, editorUtils |
+| \`@byuckchon-frontend/core\` | Overlay, ErrorBoundary, SanitizeHtmlRender |
+| \`@byuckchon-frontend/basic-ui\` | Accordion, Input, Checkbox, Toggle, Dropdown, Table, Tooltip, Pagination, Calendar, BottomSheet, Breadcrumb, Modal(Alert·Confirm·Choice), ToastMessage, UIThemeProvider |
+| \`@byuckchon-frontend/settings\` | ESLint / Prettier / tsconfig 프리셋, 모션 토큰, 디자인 토큰 변환 |
+
+**작업 순서**
+
+1. 위 표에서 찾아본다
+2. 애매하면 실제 export 를 확인한다 — 위 목록은 스냅샷이라 최신이 아닐 수 있다
+   \`\`\`bash
+   cat node_modules/@byuckchon-frontend/hooks/dist/index.d.ts
+   \`\`\`
+3. 없으면 그때 직접 구현한다
+
+없는 걸 억지로 끼워 맞추지는 마세요. 쓰임이 다르면 직접 만드는 게 맞습니다.
+
+## 2. 설정 파일은 직접 고치지 않는다
+
+\`eslint.config.js\`, \`prettier.config.js\`, \`tsconfig.*.json\`, \`token.config.js\` 는
+\`@byuckchon-frontend/settings\` 를 참조만 합니다. 규칙 본체는 node_modules 안에 있습니다.
+
+예외가 필요하면 **덮어쓰지 말고 뒤에 이어붙이세요.**
+
+\`\`\`js
+// eslint.config.js — 배열 뒤쪽이 이깁니다
+import byuckchon from '@byuckchon-frontend/settings/eslint/react';
+
+export default [
+  ...byuckchon,
+  { rules: { '@typescript-eslint/no-explicit-any': 'warn' } },
+];
+\`\`\`
+
+\`.vscode/settings.json\`, \`.nvmrc\`${isReact ? "" : ""} 같은 파일은 \`npx byuckchon-settings-sync\` 로 갱신합니다.
+
+## 3. 커밋 메시지
+
+\`\`\`
+<type>: <요약>
+\`\`\`
+
+\`feat\` \`fix\` \`refactor\` \`perf\` \`style\` \`docs\` \`test\` \`chore\`
+
+**리뷰어가 확인해야 할 것은 커밋 본문에 남깁니다.** PR 본문의 "리뷰 포인트"로 자동 수집됩니다.
+
+\`\`\`
+feat: 주문 목록 API 연동
+
+NOTE: 응답 스키마가 미확정이라 types/order.ts 에 any 가 남아 있습니다
+TODO: 에러 처리 미구현 — 백엔드 에러 코드 확정 후 작업 예정
+\`\`\`
+
+확신이 없거나, 임시로 둔 코드가 있거나, 리뷰어의 판단이 필요하면 **반드시 남기세요.**
+말없이 넘어가면 리뷰에서 놓칩니다.
+
+## 4. 브랜치 이름
+
+\`\`\`
+<type>/<작업 요약>/<작업자>
+feature/update-mypage-style/hyuk
+\`\`\`
+
+PR 제목은 첫 토막이 대괄호로 자동으로 붙습니다. → \`[feature] 마이페이지 디자인 적용\`
+
+## 5. 폴더 구조
+
+${
+  isReact
+    ? `\`\`\`
+src/lib        공용 로직·유틸      src/store      전역 상태
+src/api        API 호출           src/hooks      커스텀 훅
+src/context    Context            src/components 컴포넌트
+src/layouts    레이아웃           src/pages      페이지
+src/assets     이미지·아이콘
+\`\`\``
+    : `\`\`\`
+src/app        App Router         src/components 컴포넌트
+src/lib        공용 로직·유틸      src/hooks      커스텀 훅
+src/providers  Provider           src/constant   상수
+src/assets     이미지·아이콘
+\`\`\``
+}
+
+경로 별칭은 \`@/\` 를 씁니다. (\`@/lib/utils/cn\`)
+`;
+}
+
 // ─── 공통 설정 파일 ────────────────────────────────────────────────────────────
 
 async function createPrettierConfig(rootDir) {
@@ -246,6 +356,8 @@ export default defineConfig({
   );
 
   await write(path.join(rootDir, ".nvmrc"), await readSettingsAsset("project/nvmrc"));
+  await write(path.join(rootDir, "AGENTS.md"), agentsDoc("react"));
+  await write(path.join(rootDir, "CLAUDE.md"), "@AGENTS.md\n");
 
   await createPrettierConfig(rootDir);
   await createEslintConfig(rootDir);
@@ -373,6 +485,8 @@ export default nextConfig;
   );
 
   await write(path.join(rootDir, ".nvmrc"), await readSettingsAsset("project/nvmrc"));
+  await write(path.join(rootDir, "AGENTS.md"), agentsDoc("next"));
+  await write(path.join(rootDir, "CLAUDE.md"), "@AGENTS.md\n");
 
   await createPrettierConfig(rootDir);
   await createNextEslintConfig(rootDir);

@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import { versions } from '../constants/versions.js';
 import { readSettingsAsset } from '../utils/settingsAssets.js';
+import { agentsDoc } from './createBaseFiles.js';
 import { createApp } from './createApp.js';
 import { scaffoldReviewAutomation } from './scaffoldReviewAutomation.js';
 
@@ -133,6 +134,10 @@ packages:
   await write(path.join(root, '.npmrc'), await readSettingsAsset('project/npmrc'));
 
   await write(path.join(root, '.nvmrc'), await readSettingsAsset('project/nvmrc'));
+
+  // AI 에이전트 가이드 — 루트에 두면 모든 앱에서 공통으로 읽힌다.
+  await write(path.join(root, 'AGENTS.md'), agentsDoc(config.framework));
+  await write(path.join(root, 'CLAUDE.md'), '@AGENTS.md\n');
 
   await write(
     path.join(root, 'prettier.config.mjs'),
