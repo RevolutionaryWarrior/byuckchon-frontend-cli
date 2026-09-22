@@ -54,12 +54,14 @@ export async function createFolders(rootDir, config) {
   // 각 레이어에 placeholder 파일 생성
   await writeFile(
     path.join(rootDir, 'src/lib/utils/cn.ts'),
-    `import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+    `// 클래스 병합은 @byuckchon-frontend/utils 가 관리합니다.
+// twMerge 기본 설정은 타이포그래피 유틸(text-body-sm-regular 등)을 글자 색으로 분류해서
+// 색과 함께 쓰면 타이포가 조용히 사라집니다. utils 의 cn 은 그 부분을 고쳐둔 것입니다.
+//
+// 토큰 이름 체계가 기본 패턴과 다르면 createCn 으로 직접 지정하세요.
+//   import { createCn } from '@byuckchon-frontend/utils';
+//   export const cn = createCn({ typography: ['tab-bar', 'subtitle'] });
+export { cn } from '@byuckchon-frontend/utils';
 `,
   );
   await writeFile(

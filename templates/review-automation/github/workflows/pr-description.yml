@@ -22,8 +22,8 @@ name: PR Description
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-    branches:
-      - dev
+    # 대상 브랜치를 제한하지 않습니다. PR 본문을 채우는 일이라
+    # dev 든 main 이든 동작하는 편이 낫습니다.
 
 concurrency:
   group: pr-description-${{ github.event.pull_request.number }}
