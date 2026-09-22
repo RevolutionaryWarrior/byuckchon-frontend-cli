@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { createRequire } from 'node:module';
+
 import { config as loadDotenv } from 'dotenv';
 import { Command } from 'commander';
 import chalk from 'chalk';
@@ -24,12 +26,17 @@ import {
 // 프로젝트 .env 가 있으면 자동 로드 (ANTHROPIC_API_KEY, OPENAI_API_KEY 등).
 loadDotenv({ quiet: true });
 
+// 버전은 package.json 에서 읽는다. 여기에 직접 적으면 changesets 가 올린 버전과
+// 어긋나서, 실제로는 최신인데 옛 버전이라고 표시되는 일이 생긴다.
+const require = createRequire(import.meta.url);
+const { version } = require('../package.json');
+
 const program = new Command();
 
 program
   .name('bc')
   .description('Byuckchon Frontend Workbench — 프로젝트 스타터 + AI 어시스턴트')
-  .version('1.10.0');
+  .version(version);
 
 program
   .command('init')
