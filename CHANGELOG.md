@@ -1,5 +1,11 @@
 # byuckchon-frontend-cli
 
+## 2.0.0
+
+### Major Changes
+
+- b92ed04: baseUrl 제거
+
 ## 1.10.0
 
 ### Minor Changes
