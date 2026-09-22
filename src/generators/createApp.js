@@ -163,11 +163,12 @@ async function applyMonorepoConventions(appDir, config, scope) {
           compilerOptions: {
             // 공통 옵션은 config-typescript → settings 프리셋에 있다.
             tsBuildInfoFile: './node_modules/.tmp/tsconfig.tsbuildinfo',
-            baseUrl: '.',
+            // baseUrl 은 TypeScript 7 에서 제거 대상이다.
+            // 생략하면 paths 가 이 tsconfig 파일 위치 기준으로 해석되므로 ./ 을 붙인다.
             paths: {
-              '@/*': ['src/*'],
-              '@icons/*': ['src/assets/icons/*'],
-              '@images/*': ['src/assets/images/*'],
+              '@/*': ['./src/*'],
+              '@icons/*': ['./src/assets/icons/*'],
+              '@images/*': ['./src/assets/images/*'],
             },
           },
           include: ['src', 'vite.config.ts'],
@@ -183,7 +184,7 @@ async function applyMonorepoConventions(appDir, config, scope) {
         {
           extends: `@${scope}/config-typescript/next.json`,
           compilerOptions: {
-            baseUrl: '.',
+            // baseUrl 없이 paths 만 쓴다. (TypeScript 7 에서 baseUrl 제거)
             paths: { '@/*': ['./src/*'] },
           },
           include: [
