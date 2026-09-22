@@ -51,7 +51,7 @@ export function agentsDoc(framework) {
 | \`@byuckchon-frontend/hooks\` | useDebounce, useThrottle, useTimer, useInfiniteScroll, useIntersectionObserver, useDetectClose, useAutoFocus, useFileUpload, usePagination, usePullToRefresh, useScrollTop, useCheckList, useMonthCalendar, useVisibilityEvent, usePasswordVisibility, useImpressionRef, useInstallPWA, useScrollToSelectedItem |
 | \`@byuckchon-frontend/utils\` | 포맷(formatData), 검증(validate), 에러 처리(handleError), 쿼리 파라미터(filterParams), userAgent, sanitizeHtml, dateUtils, editorUtils |
 | \`@byuckchon-frontend/core\` | Overlay, ErrorBoundary, SanitizeHtmlRender |
-| \`@byuckchon-frontend/basic-ui\` | Accordion, Input, Checkbox, Toggle, Dropdown, Table, Tooltip, Pagination, Calendar, BottomSheet, Breadcrumb, Modal(Alert·Confirm·Choice), ToastMessage, UIThemeProvider |
+| \`@byuckchon-frontend/basic-ui\` | ⚠️ **먼저 쓰지 않는다** — 아래 설명 참고 |
 | \`@byuckchon-frontend/settings\` | ESLint / Prettier / tsconfig 프리셋, 모션 토큰, 디자인 토큰 변환 |
 
 **작업 순서**
@@ -64,6 +64,41 @@ export function agentsDoc(framework) {
 3. 없으면 그때 직접 구현한다
 
 없는 걸 억지로 끼워 맞추지는 마세요. 쓰임이 다르면 직접 만드는 게 맞습니다.
+
+### basic-ui 는 예외입니다
+
+\`@byuckchon-frontend/basic-ui\` 는 **사용자가 명시적으로 요청했을 때만** 씁니다.
+프로젝트마다 디자인이 달라서 기본 UI 컴포넌트를 그대로 쓰면 오히려 덜어내는 작업이 늘어납니다.
+
+UI 컴포넌트는 이 프로젝트의 디자인에 맞춰 직접 만드세요.
+(Accordion, Input, Modal, Table 등이 필요하면 basic-ui 에 있으니 참고만 하세요)
+
+### 모션은 settings 의 클래스를 씁니다
+
+전환 효과가 필요하면 \`duration-200\` 같은 Tailwind 기본 클래스를 직접 쓰지 말고,
+\`@byuckchon-frontend/settings\` 의 모션 유틸리티를 쓰세요. 팀 전체가 같은 속도·곡선을 공유합니다.
+
+| 상황 | 클래스 |
+| --- | --- |
+| hover 확대 / 클릭 눌림 | \`motion-hover-scale\` \`motion-press\` |
+| 펼침·접힘 / 화살표 회전 | \`motion-collapse\` \`motion-rotate\` |
+| 팝업·드롭다운 진입 | \`motion-scale-in\` |
+| 배경 딤 | \`motion-backdrop\` |
+| 바텀시트 / 드로어 | \`motion-sheet\` \`motion-slide-x-left\` \`motion-slide-x-right\` |
+| 토스트 / 툴팁 | \`motion-toast\` \`motion-tooltip\` |
+| 토글 / 체크 / 라벨 | \`motion-toggle-knob\` \`motion-check-pop\` \`motion-label-float\` |
+| 탭 인디케이터 | \`motion-tab-indicator\` |
+
+\`data-open\` 이 필요한 클래스가 있습니다. 열림 상태를 \`data-open={isOpen}\` 으로 내려주세요.
+
+\`\`\`tsx
+<div data-open={isOpen} className="motion-collapse"><div>{content}</div></div>
+\`\`\`
+
+### 클래스 병합은 cn 을 씁니다
+
+\`src/lib/utils/cn.ts\` 의 \`cn\` 을 쓰세요. \`twMerge\` 를 직접 쓰면
+타이포그래피 유틸(\`text-body-sm-regular\`)이 글자 색으로 분류되어 조용히 사라집니다.
 
 ## 2. 설정 파일은 직접 고치지 않는다
 
