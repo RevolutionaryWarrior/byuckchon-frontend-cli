@@ -59,7 +59,7 @@ export async function addCommand() {
 
   await createApp({ appDir, config, scope });
   await addRootDevScript(root, answers.appName, appPkgName);
-  await installMonorepoDeps({ root, appPkgName });
+  await installMonorepoDeps({ root, appPkgName, formatDir: `apps/${answers.appName}` });
 
   console.log(chalk.bold.green(`\n  ✓ ${appPkgName} 앱을 추가했습니다!\n`));
   console.log(chalk.yellow('  실행:\n'));

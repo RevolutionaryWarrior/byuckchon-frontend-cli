@@ -76,9 +76,9 @@ async function writeRootFiles(root, config, scope) {
       typecheck: 'turbo run typecheck',
       'tokens:build': 'turbo run tokens:build',
       format:
-        'prettier --write "**/*.{ts,tsx,js,jsx,cjs,json,md,yml,yaml}" --ignore-path .gitignore',
+        'prettier --write "**/*.{ts,tsx,js,jsx,cjs,json,md,yml,yaml}" --ignore-path .gitignore --ignore-path .prettierignore',
       'format:check':
-        'prettier --check "**/*.{ts,tsx,js,jsx,cjs,json,md,yml,yaml}" --ignore-path .gitignore',
+        'prettier --check "**/*.{ts,tsx,js,jsx,cjs,json,md,yml,yaml}" --ignore-path .gitignore --ignore-path .prettierignore',
       clean: 'turbo run clean && rm -rf node_modules .turbo',
       preinstall: 'npx only-allow pnpm',
       // 최초 앱 실행 단축키 (bc add 시 앱마다 추가됨).
@@ -90,7 +90,10 @@ async function writeRootFiles(root, config, scope) {
       '@types/node': '^22.0.0',
       eslint: '^9.18.0',
       'eslint-config-prettier': '^10.1.8',
-      prettier: '^3.3.0',
+      prettier: versions.prettier,
+      // settings 의 prettier 프리셋이 이 두 플러그인을 이름으로 불러온다. 없으면 format 이 실패한다.
+      '@trivago/prettier-plugin-sort-imports': versions['@trivago/prettier-plugin-sort-imports'],
+      'prettier-plugin-tailwindcss': versions['prettier-plugin-tailwindcss'],
       turbo: '^2.9.6',
       typescript: '~5.7.0',
     },
@@ -138,6 +141,8 @@ packages:
   // AI 에이전트 가이드 — 루트에 두면 모든 앱에서 공통으로 읽힌다.
   await write(path.join(root, 'AGENTS.md'), agentsDoc(config.framework));
   await write(path.join(root, 'CLAUDE.md'), '@AGENTS.md\n');
+  // lockfile 은 패키지 매니저가 쓰는 파일이라 포맷 대상에서 뺀다. (install 할 때마다 다시 써짐)
+  await write(path.join(root, '.prettierignore'), 'pnpm-lock.yaml\n');
 
   await write(
     path.join(root, 'prettier.config.mjs'),
