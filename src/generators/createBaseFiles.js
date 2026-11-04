@@ -24,7 +24,7 @@ export default defineTokenConfig();
 // ─── AI 에이전트 가이드 ────────────────────────────────────────────────────────
 
 /**
- * AGENTS.md 를 만든다. Codex 와 bc chat 이 이 이름을 기본으로 찾고,
+ * AGENTS.md 를 만든다. Codex · Cursor 등이 이 이름을 기본으로 찾고,
  * CLAUDE.md 는 이 파일을 import 하는 한 줄짜리로 둬서 문서를 하나만 관리한다.
  *
  * 매 세션 컨텍스트에 실리므로 짧게 유지한다. 상세 API 는 각 패키지 README 로 넘긴다.
@@ -161,8 +161,9 @@ src/assets     이미지·아이콘
 \`\`\``
     : `\`\`\`
 src/app        App Router         src/components 컴포넌트
-src/lib        공용 로직·유틸      src/hooks      커스텀 훅
-src/providers  Provider           src/constant   상수
+src/api        API 호출           src/hooks      커스텀 훅
+src/lib        공용 로직·유틸      src/constant   상수
+src/providers  Provider
 src/assets     이미지·아이콘
 \`\`\``
 }
@@ -249,8 +250,7 @@ Thumbs.db
 npm-debug.log*
 yarn-error.log*
 
-# bc CLI
-.bc/
+# Editor history
 .history
 
 # Misc
@@ -628,8 +628,6 @@ export default function Error() {
 // ─── 진입점 ───────────────────────────────────────────────────────────────────
 
 export async function createBaseFiles(rootDir, config) {
-  await write(path.join(rootDir, ".env"), "FIGMA_TOKEN=\n");
-
   if (config.framework === "react") {
     await createReactBaseFiles(rootDir, config);
   } else if (config.framework === "next") {

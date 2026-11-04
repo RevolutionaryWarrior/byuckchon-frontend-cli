@@ -25,12 +25,12 @@
 
 ## 0. 위치 & 폴더 구조
 
-API 루트는 React에서 `src/api`, Next.js에서 `src/lib/api`다.
+API 루트는 React · Next.js 모두 `src/api`다.
 
 리소스(도메인) 하나당 폴더 하나. 폴더명은 **소문자**(여러 단어는 kebab-case: `favorite-stores`).
 
 ```
-src/api/                      # Next.js: src/lib/api/
+src/api/
 ├── instance.ts               # React: axios 인스턴스
 ├── index.ts                  # 모든 API 모듈 export
 └── user/                     # 리소스 폴더 (소문자)
@@ -69,7 +69,7 @@ It should only be used from a Server Component.
 ```
 
 ```ts
-// src/lib/api/http/index.ts
+// src/api/http/index.ts
 export * from './httpBase';
 export * from './publicHttp';
 export * from './clientAuthHttp';
@@ -79,7 +79,7 @@ export * from './clientAuthHttp';
 `serverAuthHttp`와 Server API는 barrel을 거치지 않고 절대경로로 직접 import한다.
 
 ```ts
-import { serverAuthHttp } from '@/lib/api/http/serverAuthHttp';
+import { serverAuthHttp } from '@/api/http/serverAuthHttp';
 ```
 
 - Server 파일은 가능하면 `import 'server-only';`로 경계를 표시한다.
@@ -169,7 +169,7 @@ export const deleteUser = async (userId: string) => {
 
 ```ts
 // Next.js Server
-import { serverAuthHttp } from '@/lib/api/http/serverAuthHttp';
+import { serverAuthHttp } from '@/api/http/serverAuthHttp';
 import type { UserItem } from './user.type';
 
 const RESOURCE = '/api/user';
@@ -449,7 +449,7 @@ export const useGetUser = (options?: Record<string, any>) => {
 
 ## 7. 생성 시 체크리스트 ✅
 
-1. [ ] 위치를 맞췄다 (React `src/api` / Next.js `src/lib/api`).
+1. [ ] 위치를 맞췄다 (`src/api`).
 2. [ ] 엔드포인트가 **next(무한스크롤)** 인지 판단했다. (§1)
 3. [ ] `api / zod / type / service / index` 5파일을 모두 만들었다.
 4. [ ] Swagger 응답을 zod 로 정확히 매핑(nullable/optional/enum/date/$ref).

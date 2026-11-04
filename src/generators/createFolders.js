@@ -28,6 +28,7 @@ const REACT_FOLDERS = [
 const NEXT_FOLDERS = [
   'public',
   'src/app',
+  'src/api',
   'src/assets',
   'src/assets/common',
   'src/assets/pages',
@@ -127,6 +128,7 @@ export { cn } from '@byuckchon-frontend/utils';
     await writeFile(path.join(rootDir, 'src/layouts/index.tsx'), '// 레이아웃 컴포넌트\n');
     await writeFile(path.join(rootDir, 'src/pages/index.tsx'), '// 페이지 컴포넌트\n');
   } else {
+    await writeFile(path.join(rootDir, 'src/api/index.ts'), '// API 호출\n');
     await writeFile(path.join(rootDir, 'src/constant/index.ts'), '// 상수 정의\n');
     await writeFile(path.join(rootDir, 'src/providers/index.tsx'), '// 전역 Provider\n');
   }

@@ -1,6 +1,5 @@
 import inquirer from 'inquirer';
 
-import { modelChoices, DEFAULT_MODEL_ID } from '../ai/models.js';
 import { deriveScope } from '../context/monorepo.js';
 
 const NAME_RULE = (input) => {
@@ -19,6 +18,9 @@ const FRAMEWORK_CHOICES = [
   { name: 'React  (Vite + TypeScript)', value: 'react' },
   { name: 'Next.js  (App Router + TypeScript)', value: 'next' },
 ];
+
+// OpenAPI URL 은 묻지 않는다. 생성 단계에서는 거의 쓰지 않아서,
+// 필요하면 bc.config.json 의 api.openapi 에 직접 넣거나 bc adopt 로 채운다.
 
 /** 단일 프로젝트 vs 모노레포 선택. */
 export async function askProjectType() {
@@ -71,25 +73,6 @@ export async function askMonorepoQuestions() {
       message: '이 앱의 프레임워크는?',
       choices: FRAMEWORK_CHOICES,
     },
-    {
-      type: 'list',
-      name: 'aiModel',
-      message: 'bc chat 에서 기본으로 쓸 AI 모델은?',
-      choices: [...modelChoices(), { name: '나중에 설정 (bc config set-model)', value: null }],
-      default: DEFAULT_MODEL_ID,
-    },
-    {
-      type: 'input',
-      name: 'figmaUrl',
-      message: 'Figma 파일 URL (선택, 엔터로 건너뛰기):',
-      default: '',
-    },
-    {
-      type: 'input',
-      name: 'openapiUrl',
-      message: '백엔드 OpenAPI(Swagger) URL (선택, 엔터로 건너뛰기):',
-      default: '',
-    },
   ]).then((rest) => ({ ...base, ...rest }));
 }
 
@@ -107,25 +90,6 @@ export async function askAddQuestions({ scope } = {}) {
       name: 'framework',
       message: '프레임워크는?',
       choices: FRAMEWORK_CHOICES,
-    },
-    {
-      type: 'list',
-      name: 'aiModel',
-      message: '이 앱 bc chat 기본 모델은?',
-      choices: [...modelChoices(), { name: '나중에 설정 (bc config set-model)', value: null }],
-      default: DEFAULT_MODEL_ID,
-    },
-    {
-      type: 'input',
-      name: 'figmaUrl',
-      message: 'Figma 파일 URL (선택):',
-      default: '',
-    },
-    {
-      type: 'input',
-      name: 'openapiUrl',
-      message: '백엔드 OpenAPI(Swagger) URL (선택):',
-      default: '',
     },
   ]);
 }
@@ -151,28 +115,6 @@ export async function askInitQuestions() {
         { name: 'React  (Vite + TypeScript)', value: 'react' },
         { name: 'Next.js  (App Router + TypeScript)', value: 'next' },
       ],
-    },
-    {
-      type: 'list',
-      name: 'aiModel',
-      message: 'bc chat 에서 기본으로 쓸 AI 모델은?',
-      choices: [
-        ...modelChoices(),
-        { name: '나중에 설정 (bc config set-model)', value: null },
-      ],
-      default: DEFAULT_MODEL_ID,
-    },
-    {
-      type: 'input',
-      name: 'figmaUrl',
-      message: 'Figma 파일 URL (선택, 엔터로 건너뛰기):',
-      default: '',
-    },
-    {
-      type: 'input',
-      name: 'openapiUrl',
-      message: '백엔드 OpenAPI(Swagger) URL (선택, 엔터로 건너뛰기):',
-      default: '',
     },
   ]);
 }
