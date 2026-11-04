@@ -7,12 +7,17 @@
  *   설치 단계에선 최신 settings 가 들어온다. → 앱 의존성은 옛 매트릭스, 설정은 새 settings.
  *
  * 하는 일
- *   1) npm 의 최신 settings 버전이 CLI 에 포함된 것보다 높으면 그 버전을 받아(npm pack)
+ *   1) CLI 자체 버전을 npm 최신과 비교한다. (ensureCliUpToDate)
+ *      - major · minor 가 뒤처졌으면 멈춘다. 버전표는 최신 settings 를 쓰는데 파일 템플릿은
+ *        설치된 CLI 것이라, 템플릿이 바뀐 버전 차이에서는 둘이 어긋날 수 있다.
+ *      - patch 만 뒤처졌으면 업데이트 명령을 안내하고 계속한다.
+ *   2) npm 의 최신 settings 버전이 CLI 에 포함된 것보다 높으면 그 버전을 받아(npm pack)
  *      versions · nvmrc · turbo.json · vscode 등을 그 버전에서 읽는다.
- *   2) CLI 자체가 오래됐으면 업데이트 명령을 안내한다.
  *   3) 네트워크 실패 등은 경고만 하고 CLI 에 포함된 settings 로 계속 진행한다.
  *
- * 개발·테스트용: BC_SETTINGS_DIR=<settings 패키지 폴더> 를 주면 그 폴더를 쓴다.
+ * 개발·테스트용
+ *   BC_SETTINGS_DIR=<settings 패키지 폴더>  그 폴더의 settings 를 쓴다.
+ *   BC_SKIP_CLI_CHECK=1                     CLI 버전 검사를 건너뛴다.
  */
 
 import { exec as execCallback } from 'node:child_process';
@@ -114,17 +119,53 @@ async function applySettingsRoot(root) {
   }
 }
 
-async function warnIfCliOutdated() {
+const UPDATE_HINT = `npm i -g ${CLI_PKG}@latest   또는   npx ${CLI_PKG}@latest <명령>`;
+
+/**
+ * CLI 가 npm 최신보다 얼마나 뒤처졌는지. major · minor 차이는 템플릿이 바뀌었을 수 있다.
+ * @returns {'none' | 'patch' | 'minor'}
+ */
+export function cliLag(current, latest) {
+  if (compareVersions(latest, current) <= 0) return 'none';
+  const [cMajor, cMinor] = String(current).split('.').map((n) => Number.parseInt(n, 10) || 0);
+  const [lMajor, lMinor] = String(latest).split('.').map((n) => Number.parseInt(n, 10) || 0);
+  return lMajor > cMajor || lMinor > cMinor ? 'minor' : 'patch';
+}
+
+/**
+ * 사용 전에 CLI 버전을 검사한다.
+ * - major · minor 가 뒤처졌으면 업데이트 명령을 보여주고 종료한다.
+ * - patch 만 뒤처졌으면 안내만 하고 계속한다.
+ * - npm 에 접속하지 못하면 경고만 하고 계속한다.
+ */
+export async function ensureCliUpToDate() {
+  if (process.env.BC_SKIP_CLI_CHECK) return { status: 'skipped' };
+
   const current = require('../../package.json').version;
-  const latest = await npmLatest(CLI_PKG);
-  if (compareVersions(latest, current) > 0) {
+  let latest;
+  try {
+    latest = await npmLatest(CLI_PKG);
+  } catch {
     console.log(
-      chalk.yellow(`  ⚠ ${CLI_PKG} 새 버전이 있어요 (${current} → ${latest}).`),
+      chalk.yellow(`  ⚠ npm 에서 ${CLI_PKG} 최신 버전을 확인하지 못했습니다. 현재 ${current} 로 진행합니다.\n`),
     );
-    console.log(
-      chalk.dim(`    npm i -g ${CLI_PKG}@latest   또는   npx ${CLI_PKG}@latest <명령>\n`),
-    );
+    return { status: 'unknown', current };
   }
+
+  const lag = cliLag(current, latest);
+  if (lag === 'minor') {
+    console.log(chalk.red(`\n  ✗ ${CLI_PKG} ${current} 은(는) 오래된 버전입니다. (최신 ${latest})`));
+    console.log(
+      chalk.dim('    생성 템플릿이 바뀐 버전 차이라 이 버전으로는 만들지 않습니다. 업데이트 후 다시 실행하세요.'),
+    );
+    console.log(chalk.white(`\n    ${UPDATE_HINT}\n`));
+    process.exit(1);
+  }
+  if (lag === 'patch') {
+    console.log(chalk.yellow(`  ⚠ ${CLI_PKG} 새 버전이 있어요 (${current} → ${latest}).`));
+    console.log(chalk.dim(`    ${UPDATE_HINT}\n`));
+  }
+  return { status: lag === 'patch' ? 'patch-behind' : 'latest', current, latest };
 }
 
 /**
@@ -144,11 +185,10 @@ export async function prepareVersionMatrix() {
     }
   }
 
-  const [cliCheck, latestSettings] = await Promise.allSettled([
-    warnIfCliOutdated(),
-    npmLatest(SETTINGS_PKG),
-  ]);
-  void cliCheck;
+  // 오래된 CLI 면 여기서 멈춘다. (템플릿과 최신 버전표가 어긋나지 않도록)
+  await ensureCliUpToDate();
+
+  const [latestSettings] = await Promise.allSettled([npmLatest(SETTINGS_PKG)]);
 
   if (latestSettings.status !== 'fulfilled') {
     console.log(
