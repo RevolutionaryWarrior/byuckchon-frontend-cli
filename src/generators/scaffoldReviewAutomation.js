@@ -2,6 +2,8 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { renderWorkflow } from './workflowPackageManager.js';
+
 const TEMPLATE_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   '../../templates/review-automation',
@@ -52,6 +54,23 @@ async function pathExists(target) {
   }
 }
 
+/** init 으로 만드는 프로젝트의 기본 패키지 매니저 */
+const DEFAULT_PACKAGE_MANAGER = {
+  single: { name: 'npm' },
+  // bc init 모노레포는 루트 package.json 에 packageManager 필드를 넣으므로 version 이 필요 없다.
+  monorepo: { name: 'pnpm', pnpmVersion: null },
+};
+
+async function writeWorkflowIfAllowed(source, target, overwrite, packageManager) {
+  if (!overwrite && (await pathExists(target))) {
+    return false;
+  }
+
+  const template = await fs.readFile(source, 'utf8');
+  await fs.writeFile(target, renderWorkflow(template, packageManager), 'utf8');
+  return true;
+}
+
 async function copyFileIfAllowed(source, target, overwrite) {
   if (!overwrite && (await pathExists(target))) {
     return false;
@@ -74,6 +93,8 @@ async function copyFileIfAllowed(source, target, overwrite) {
  * @param {'single' | 'monorepo'} args.projectType 생성할 프로젝트 유형
  * @param {boolean} [args.overwrite=true] 기존 파일을 템플릿으로 덮어쓸지
  * @param {string[]} [args.exclude=[]] 제외할 워크플로 이름 (확장자·유형 접미사 제외)
+ * @param {import('./workflowPackageManager.js').WorkflowPackageManager} [args.packageManager]
+ *   workflow 의 설치·실행 명령을 맞출 패키지 매니저. 없으면 single=npm, monorepo=pnpm
  * @returns {Promise<{ toolsDir: string, workflows: string[], pullRequestTemplate: boolean }>}
  */
 export async function scaffoldReviewAutomation({
@@ -81,6 +102,7 @@ export async function scaffoldReviewAutomation({
   projectType,
   overwrite = true,
   exclude = [],
+  packageManager,
 }) {
   if (!PROJECT_TYPES.includes(projectType)) {
     throw new Error(`지원하지 않는 프로젝트 유형입니다: ${projectType}`);
@@ -103,10 +125,11 @@ export async function scaffoldReviewAutomation({
   const copiedWorkflows = [];
 
   for (const { source, target } of selectWorkflows(workflowFiles, projectType, exclude)) {
-    const copied = await copyFileIfAllowed(
+    const copied = await writeWorkflowIfAllowed(
       path.join(workflowsTemplateDir, source),
       path.join(workflowsTargetDir, target),
       overwrite,
+      packageManager ?? DEFAULT_PACKAGE_MANAGER[projectType],
     );
     if (copied) copiedWorkflows.push(target);
   }

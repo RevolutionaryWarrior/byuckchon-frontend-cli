@@ -6,6 +6,7 @@ import chalk from 'chalk';
 import { askAddQuestions } from '../prompts/initPrompts.js';
 import { createApp } from '../generators/createApp.js';
 import { installMonorepoDeps } from '../generators/install.js';
+import { prepareVersionMatrix } from '../utils/latestSettings.js';
 import {
   detectMonorepoRoot,
   detectScope,
@@ -31,6 +32,9 @@ export async function addCommand() {
     );
     process.exit(1);
   }
+
+  // CLI 를 예전에 설치했어도 최신 settings 의 버전 매트릭스로 생성한다.
+  await prepareVersionMatrix();
 
   const scope = await detectScope(root);
   console.log(chalk.dim(`  모노레포: ${root}`));

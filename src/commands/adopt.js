@@ -14,6 +14,9 @@ import {
 import { scaffoldReviewAutomation } from '../generators/scaffoldReviewAutomation.js';
 import { detectMonorepoRoot } from '../context/monorepo.js';
 import { ensureRequiredDependencies } from '../utils/ensureRequiredDependencies.js';
+import { prepareVersionMatrix } from '../utils/latestSettings.js';
+import { ensureNvmrc } from '../generators/ensureNvmrc.js';
+import { workflowPackageManagerFrom } from '../generators/workflowPackageManager.js';
 
 /**
  * `bc adopt`
@@ -31,6 +34,7 @@ export async function adoptCommand(opts = {}) {
   const targetFile = path.join(cwd, CONFIG_PATHS.projectFileName);
 
   console.log(chalk.bold.cyan('\n  bc adopt — 기존 프로젝트에 bc 설정 추가\n'));
+  await prepareVersionMatrix();
 
   const ctx = await detectProjectContext(cwd);
   if (!ctx.isProject) {
@@ -154,7 +158,18 @@ export async function adoptCommand(opts = {}) {
     framework: ctx.framework,
     packageManager: ctx.packageManager,
   });
-  if (dependencies.installed.length) {
+  if (dependencies.skipped) {
+    console.log(
+      chalk.yellow('  ⚠ 패키지 매니저를 알 수 없어 필수 의존성 설치를 건너뜁니다. (lockfile · packageManager 필드 없음)'),
+    );
+    console.log(chalk.dim('    사용하는 패키지 매니저로 직접 설치해주세요.'));
+    if (dependencies.missing.length) {
+      console.log(chalk.dim(`    dependencies:    ${dependencies.missing.join(' ')}`));
+    }
+    if (dependencies.missingDev.length) {
+      console.log(chalk.dim(`    devDependencies: ${dependencies.missingDev.join(' ')}`));
+    }
+  } else if (dependencies.installed.length) {
     console.log(
       chalk.green(
         `  ✓ 필수 의존성 설치 완료 (${dependencies.packageManager}): ${dependencies.installed.join(', ')}`,
@@ -184,6 +199,28 @@ export async function adoptCommand(opts = {}) {
     const monorepoRoot = await detectMonorepoRoot(cwd);
     const reviewProjectRoot = monorepoRoot ?? cwd;
     const projectType = monorepoRoot ? 'monorepo' : 'single';
+
+    // workflow 가 모두 node-version-file: .nvmrc 를 읽는다. 없으면 setup-node 에서 실패한다.
+    const nvmrc = await ensureNvmrc(reviewProjectRoot);
+    if (nvmrc.written) {
+      console.log(
+        chalk.green(`  ✓ .nvmrc 생성: Node ${nvmrc.value} (${nvmrc.source})`),
+      );
+    }
+
+    // workflow 의 설치·실행 명령을 프로젝트 패키지 매니저에 맞춘다.
+    // (pnpm 인데 packageManager 필드가 없으면 pnpm/action-setup 에 version 을 넣는다)
+    const packageManager = await workflowPackageManagerFrom(
+      ctx.packageManagerInfo,
+      reviewProjectRoot,
+    );
+    if (ctx.packageManager === 'unknown') {
+      console.log(
+        chalk.yellow(
+          '  ⚠ 패키지 매니저를 몰라 workflow 는 npm 기준으로 만듭니다. 다르면 .github/workflows 의 설치 명령을 고쳐주세요.',
+        ),
+      );
+    }
     const reviewAutomation = await scaffoldReviewAutomation({
       projectRoot: reviewProjectRoot,
       projectType,
@@ -191,6 +228,7 @@ export async function adoptCommand(opts = {}) {
       // PR Check 는 스크립트 이름·브랜치·패키지 매니저를 전제하므로
       // 기존 프로젝트에 말없이 깔면 CI 가 곧바로 실패한다. bc init 전용으로 둔다.
       exclude: ['pr-check'],
+      packageManager,
     });
 
     if (reviewAutomation.workflows.length) {
@@ -199,7 +237,11 @@ export async function adoptCommand(opts = {}) {
           `  ✓ PR 워크플로 추가: ${path.join(reviewProjectRoot, '.github', 'workflows')}`,
         ),
       );
-      console.log(chalk.dim(`    ${reviewAutomation.workflows.join(', ')}`));
+      console.log(
+        chalk.dim(
+          `    ${reviewAutomation.workflows.join(', ')} (패키지 매니저: ${packageManager.name}${packageManager.pnpmVersion ? ` · pnpm ${packageManager.pnpmVersion} 지정` : ''})`,
+        ),
+      );
       console.log(
         chalk.dim(
           '    (PR Check 워크플로는 기존 프로젝트의 스크립트·브랜치 설정을 전제하므로 추가하지 않습니다)',
