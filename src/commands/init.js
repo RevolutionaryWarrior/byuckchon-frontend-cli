@@ -62,7 +62,7 @@ async function runSingleInit() {
   console.log(chalk.white(`    cd ${answers.projectName}`));
   console.log(chalk.white("    npm run dev\n"));
 
-  printAiHints(answers.aiModel);
+  printAiHints();
 }
 
 async function runMonorepoInit() {
@@ -90,22 +90,16 @@ async function runMonorepoInit() {
   console.log(chalk.white(`    pnpm ${appName}          # ${appName} 앱 실행\n`));
   console.log(chalk.dim("  앱을 더 추가하려면 루트에서:  bc add\n"));
 
-  printAiHints(answers.aiModel);
+  printAiHints();
 }
 
-function printAiHints(aiModel) {
+function printAiHints() {
   console.log(chalk.dim("  AI 어시스턴트:"));
-  if (aiModel) {
-    console.log(
-      chalk.dim(
-        `    이 프로젝트의 기본 모델 = ${aiModel} (bc.config.json 에 저장됨)`
-      )
-    );
-  } else {
-    console.log(
-      chalk.dim("    모델 미설정 — `bc config set-model` 로 나중에 지정")
-    );
-  }
+  console.log(
+    chalk.dim(
+      "    모델: 전역 설정(`bc config set-model`)을 따르고, 없으면 기본 모델을 씁니다"
+    )
+  );
   console.log(
     chalk.dim(
       "    API 키:  bc config set-key anthropic   (또는 ANTHROPIC_API_KEY 환경변수)"

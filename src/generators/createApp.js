@@ -19,7 +19,7 @@ import { scaffoldApiConventionDoc } from './apiConventionDoc.js';
  *
  * @param {object} args
  * @param {string} args.appDir     앱 절대경로 (…/apps/<name>)
- * @param {object} args.config     { projectName, framework, aiModel, figmaUrl, openapiUrl }
+ * @param {object} args.config     { projectName, framework }
  * @param {string} args.scope      npm scope (예: 'marketd' → @marketd/<app>)
  */
 export async function createApp({ appDir, config, scope }) {

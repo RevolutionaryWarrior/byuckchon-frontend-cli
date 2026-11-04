@@ -23,7 +23,7 @@ import { scaffoldReviewAutomation } from './scaffoldReviewAutomation.js';
  *     packages/config-eslint/*
  *     apps/<initial-app>/      (사용자가 고른 React 또는 Next 하나)
  *
- * @param {object} config { projectName, framework, appName, scope, aiModel, figmaUrl, openapiUrl }
+ * @param {object} config { projectName, framework, appName, scope }
  */
 export async function createMonorepo(config) {
   const root = path.resolve(config.projectName);

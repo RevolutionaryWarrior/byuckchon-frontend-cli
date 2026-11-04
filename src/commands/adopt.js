@@ -6,7 +6,6 @@ import inquirer from 'inquirer';
 
 import { detectProjectContext, summarizeContext } from '../context/detect.js';
 import { CONFIG_PATHS } from '../config/index.js';
-import { modelChoices, DEFAULT_MODEL_ID } from '../ai/models.js';
 import {
   apiRootForFramework,
   scaffoldApiConventionDoc,
@@ -26,7 +25,7 @@ import { workflowPackageManagerFrom } from '../generators/workflowPackageManager
  *
  * 흐름:
  *   1) 자동 감지(framework, styling, language, routing 등) 결과를 보여주고
- *   2) 모델·Figma·OpenAPI URL 만 추가로 묻고
+ *   2) Figma·OpenAPI URL 만 추가로 묻고 (bc chat 모델은 기존 bc.config.json 값 유지)
  *   3) bc.config.json 생성/덮어쓰기 (이미 있으면 confirm)
  */
 export async function adoptCommand(opts = {}) {
@@ -83,16 +82,6 @@ export async function adoptCommand(opts = {}) {
 
   const answers = await inquirer.prompt([
     {
-      type: 'list',
-      name: 'aiModel',
-      message: '이 프로젝트에서 기본으로 쓸 AI 모델은?',
-      choices: [
-        ...modelChoices(),
-        { name: '글로벌 기본값 따르기 (변경 없음)', value: null },
-      ],
-      default: existing?.ai?.model ?? DEFAULT_MODEL_ID,
-    },
-    {
       type: 'input',
       name: 'figmaUrl',
       message: 'Figma 파일/노드 URL (선택, 엔터로 건너뛰기):',
@@ -115,7 +104,8 @@ export async function adoptCommand(opts = {}) {
   const next = {
     $schema: 'https://byuckchon.dev/bc.schema.json',
     ai: {
-      model: answers.aiModel ?? null,
+      // 모델은 묻지 않는다. 기존 값이 있으면 유지하고, 없으면 전역 설정 → 기본 모델을 따른다.
+      model: existing?.ai?.model ?? null,
     },
     design: {
       figma: answers.figmaUrl?.trim() || null,

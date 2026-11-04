@@ -13,16 +13,18 @@ import { apiRootForFramework } from './apiConventionDoc.js';
 export async function createBcConfig(rootDir, config) {
   const bcConfig = {
     $schema: 'https://byuckchon.dev/bc.schema.json',
+    // init · add 는 모델 · Figma · OpenAPI URL 을 묻지 않으므로 비워 둔다.
+    // 필요하면 파일에 직접 넣거나 bc adopt 로 채운다.
     ai: {
       // null 이면 글로벌 기본 모델(=~/.bc/config.json) 을 따름.
-      model: config.aiModel ?? null,
+      model: null,
     },
     design: {
-      figma: config.figmaUrl?.trim() || null,
+      figma: null,
       figmaTokenEnv: 'FIGMA_TOKEN',
     },
     api: {
-      openapi: config.openapiUrl?.trim() || null,
+      openapi: null,
       baseUrl: null,
     },
     context: {
