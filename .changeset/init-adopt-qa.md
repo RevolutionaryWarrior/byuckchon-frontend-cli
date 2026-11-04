@@ -6,8 +6,8 @@ bc init · add · adopt QA 수정
 
 - init · add 가 시작할 때 npm 의 최신 `@byuckchon-frontend/settings` 버전 매트릭스를 받아서 씁니다.
   CLI 를 예전에 설치했어도 옛 매트릭스로 생성되지 않습니다.
-- init · add · adopt 전에 CLI 버전을 검사합니다. npm 최신보다 major · minor 가 뒤처졌으면 업데이트 명령을 보여주고 멈추고,
-  patch 만 뒤처졌으면 안내만 하고 진행합니다. (npm 확인 실패 시 진행 · 개발용 `BC_SKIP_CLI_CHECK=1`)
+- init · add · adopt 전에 CLI 버전을 검사합니다. npm 최신보다 뒤처졌으면(major · minor · patch 무관)
+  업데이트 명령을 보여주고 멈춥니다. (npm 확인 실패 시 진행 · 개발용 `BC_SKIP_CLI_CHECK=1`)
   (네트워크 실패 시 CLI 에 포함된 settings 로 진행 · 개발용 `BC_SETTINGS_DIR`)
 - 모노레포 Next 앱(`bc add`)에도 `@tanstack/react-query` 를 넣습니다.
 - 새 프로젝트에 `src/lib/query/cacheConfig.ts` 를 만들고 `@/lib` 에서 export 합니다. (React · Next 공통)
