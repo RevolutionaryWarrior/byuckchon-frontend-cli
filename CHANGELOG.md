@@ -1,5 +1,38 @@
 # byuckchon-frontend-cli
 
+## 3.0.0
+
+### Major Changes
+
+- 858f6bc: `bc chat` 과 chat 전용 기능을 제거했습니다.
+
+  - 제거한 명령: `bc chat` · `bc start` · `bc index` · `bc config`
+  - 인자 없이 `bc` 를 실행하면 chat 대신 도움말을 보여줍니다.
+  - 함께 제거: AI provider · ink TUI · 대화 기록 · 코드베이스 RAG · Figma REST 연동 · OpenAPI 캐시/검색
+  - 의존성 제거: `ai` · `@ai-sdk/anthropic` · `@ai-sdk/openai` · `ink` · `ink-spinner` · `ink-text-input` · `react` · `fast-glob` · `dotenv`
+  - `bc.config.json` 에서 chat 전용 필드(`ai` · `design` · `context` · `docs`)를 더 이상 만들지 않습니다. `api` · `framework` · `detected` 만 남습니다.
+  - 생성 질문에서 bc chat 용 값을 뺐습니다. `bc init` · `bc add` 는 AI 모델 · Figma · OpenAPI URL 을, `bc adopt` 는 AI 모델 · Figma URL 을 묻지 않습니다. (OpenAPI URL 은 필요하면 `bc.config.json` 의 `api.openapi` 에 직접 입력)
+  - 새 프로젝트에 `FIGMA_TOKEN` 만 담긴 `.env` 와 `.gitignore` 의 `.bc/` 항목을 만들지 않습니다.
+  - `~/.bc/config.json` (전역 설정)은 더 이상 읽지 않습니다. 필요 없으면 지워도 됩니다.
+
+### Minor Changes
+
+- d3a97b6: bc init · add · adopt QA 수정
+
+  - init · add 가 시작할 때 npm 의 최신 `@byuckchon-frontend/settings` 버전 매트릭스를 받아서 씁니다.
+    CLI 를 예전에 설치했어도 옛 매트릭스로 생성되지 않습니다.
+  - init · add · adopt 전에 CLI 버전을 검사합니다. npm 에 배포된 최신 버전과 정확히 같을 때만 진행하고,
+    낮거나 높으면(major · minor · patch 무관) 멈춥니다. (npm 확인 실패 시 진행 · CLI 개발용 `BC_SKIP_CLI_CHECK=1`)
+    (네트워크 실패 시 CLI 에 포함된 settings 로 진행 · 개발용 `BC_SETTINGS_DIR`)
+  - 모노레포 Next 앱(`bc add`)에도 `@tanstack/react-query` 를 넣습니다.
+  - 새 프로젝트에 `src/lib/query/cacheConfig.ts` 를 만들고 `@/lib` 에서 export 합니다. (React · Next 공통)
+  - adopt
+    - `.nvmrc` 가 없으면 만듭니다. (.node-version → engines.node → settings 기본값)
+    - 패키지 매니저를 상위 폴더 lockfile · `packageManager` 필드까지 보고 감지합니다. `bun.lock` 도 감지합니다.
+    - 패키지 매니저를 모르면 npm 으로 강행하지 않고 설치할 목록만 안내합니다.
+    - 복사하는 workflow 의 설치·실행 명령을 npm · pnpm · yarn(berry 포함) · bun 에 맞춥니다.
+    - pnpm 인데 루트 `packageManager` 필드가 없으면 `pnpm/action-setup` 에 lockfile 기준 version 을 넣습니다.
+
 ## 2.0.1
 
 ### Patch Changes
