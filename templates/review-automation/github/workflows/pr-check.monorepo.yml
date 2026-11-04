@@ -4,6 +4,7 @@
 # 이 workflow 는 "머지해도 되는가"(lint / typecheck / build 성공 여부)를 판정합니다.
 #
 # turbo 가 변경된 패키지만 골라 실행하고 캐시를 재사용합니다.
+# @bc:note 패키지 매니저 부분(__PM_*__, @bc:pm-setup)은 bc 가 복사할 때 프로젝트에 맞게 채웁니다.
 # 프로젝트 사정에 맞게 자유롭게 수정하세요. 이 파일은 프로젝트 소유입니다.
 
 name: PR Check
@@ -31,7 +32,7 @@ jobs:
           # turbo 가 변경 범위를 계산할 수 있도록 히스토리를 가져옵니다.
           fetch-depth: 0
 
-      - uses: pnpm/action-setup@v4
+      # @bc:pm-setup
 
       - uses: actions/setup-node@v4
         with:

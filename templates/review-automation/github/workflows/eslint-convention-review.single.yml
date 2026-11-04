@@ -1,3 +1,6 @@
+# ESLint 기반 기계적 컨벤션을 PR 인라인 댓글로 게시합니다.
+# @bc:note 패키지 매니저 부분(__PM_*__, @bc:pm-setup)은 bc 가 복사할 때 프로젝트에 맞게 채웁니다.
+
 name: ESLint Convention Review
 
 on:
@@ -19,13 +22,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # @bc:pm-setup
+
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-          cache: npm
+          cache: __PM_CACHE__
 
       - name: 의존성 설치
-        run: npm ci
+        run: __PM_INSTALL__
 
       - name: ESLint 컨벤션 리뷰 댓글
         env:
@@ -34,11 +39,11 @@ jobs:
           REPO: ${{ github.repository }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          npx eslint . \
+          __PM_EXEC__ eslint . \
             --config tools/review.config.mjs \
             --no-error-on-unmatched-pattern \
             -f node_modules/@byuckchon-frontend/settings/src/eslint/internal-rdjson-formatter.js \
             -o /tmp/eslint-conventions.rdjson || true
-          npx --no-install byuckchon-eslint-review-comments \
+          __PM_EXEC__ byuckchon-eslint-review-comments \
             /tmp/eslint-conventions.rdjson \
             eslint-conventions

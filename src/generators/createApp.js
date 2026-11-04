@@ -84,11 +84,13 @@ async function createAppPackageJson(appDir, config, scope) {
       'react-dom': isReact ? versions['react-dom'] : versions['next-react-dom'],
       ...(isReact ? {} : { next: versions.next }),
       zustand: versions.zustand,
+      // 단일 프로젝트(createPackageJson)와 같이 React · Next 공통으로 넣는다.
+      // AGENTS.md · api-codegen.md · cacheConfig 가 react-query 를 전제한다.
+      '@tanstack/react-query': versions['@tanstack/react-query'],
       ...(isReact
         ? {
             axios: versions.axios,
             'react-router-dom': versions['react-router-dom'],
-            '@tanstack/react-query': versions['@tanstack/react-query'],
           }
         : {}),
       zod: versions.zod,

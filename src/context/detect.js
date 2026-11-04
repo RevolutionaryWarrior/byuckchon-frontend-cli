@@ -11,6 +11,7 @@ import path from 'node:path';
  *     language:  'ts' | 'js',
  *     styling:   { tailwind, cssModules, styledComponents, emotion, vanillaExtract },
  *     packageManager: 'npm' | 'yarn' | 'pnpm' | 'bun' | 'unknown',
+ *     packageManagerInfo: detectPackageManagerDetails() 결과 (버전·근거 폴더 등),
  *     routing:   'app-router' | 'pages-router' | 'expo-router' | 'react-router' | null,
  *     componentDirs: string[],            // 후보 컴포넌트 폴더 (있는 것만)
  *     designTokensFiles: string[],        // tailwind.config / theme 토큰 파일들
@@ -133,11 +134,14 @@ export async function detectProjectContext(projectDir = process.cwd()) {
   else if (has('jest') || has('@testing-library/react')) hasTests = 'jest';
   if (has('@playwright/test')) hasTests = hasTests ? hasTests : 'playwright';
 
+  const packageManagerInfo = await detectPackageManagerDetails(root);
+
   return {
     framework,
     language,
     styling,
-    packageManager: await detectPackageManager(root),
+    packageManager: packageManagerInfo.name,
+    packageManagerInfo,
     routing,
     componentDirs,
     designTokensFiles,
@@ -188,12 +192,89 @@ async function readJsonSafe(file) {
   }
 }
 
-async function detectPackageManager(root) {
-  if (await exists(path.join(root, 'pnpm-lock.yaml'))) return 'pnpm';
-  if (await exists(path.join(root, 'yarn.lock'))) return 'yarn';
-  if (await exists(path.join(root, 'bun.lockb'))) return 'bun';
-  if (await exists(path.join(root, 'package-lock.json'))) return 'npm';
-  return 'unknown';
+const LOCKFILES = [
+  ['pnpm-lock.yaml', 'pnpm'],
+  ['pnpm-workspace.yaml', 'pnpm'],
+  ['yarn.lock', 'yarn'],
+  ['bun.lock', 'bun'], // bun 1.2+ 텍스트 형식
+  ['bun.lockb', 'bun'],
+  ['package-lock.json', 'npm'],
+  ['npm-shrinkwrap.json', 'npm'],
+];
+
+const KNOWN_PMS = ['npm', 'pnpm', 'yarn', 'bun'];
+
+/** package.json 의 `packageManager` 필드("pnpm@10.0.0+sha…")를 { name, version } 으로. */
+function parsePackageManagerField(value) {
+  if (typeof value !== 'string') return null;
+  const match = /^(npm|pnpm|yarn|bun)@(\d+(?:\.\d+){0,2})/.exec(value.trim());
+  return match ? { name: match[1], version: match[2] } : null;
+}
+
+/**
+ * 패키지 매니저를 자세히 감지한다.
+ *
+ * 현재 폴더에서 위로 올라가며 (git 루트 또는 파일시스템 루트까지)
+ *   1) package.json 의 `packageManager` 필드
+ *   2) lockfile (pnpm-lock.yaml · yarn.lock · bun.lock(b) · package-lock.json)
+ * 순서로 확인한다. 모노레포 앱 폴더(apps/web)처럼 lockfile 이 루트에만 있어도 찾는다.
+ *
+ * @returns {Promise<{
+ *   name: 'npm' | 'pnpm' | 'yarn' | 'bun' | 'unknown',
+ *   version: string | null,   // packageManager 필드에 적힌 버전
+ *   dir: string | null,       // 근거를 찾은 폴더
+ *   hasPackageManagerField: boolean,
+ *   yarnBerry: boolean,       // yarn 2+ (.yarnrc.yml 또는 yarn@2 이상)
+ * }>}
+ */
+export async function detectPackageManagerDetails(startDir = process.cwd()) {
+  let dir = path.resolve(startDir);
+
+  while (true) {
+    const pkg = await readJsonSafe(path.join(dir, 'package.json'));
+    const field = parsePackageManagerField(pkg?.packageManager);
+    let name = field?.name ?? null;
+
+    if (!name) {
+      for (const [file, pm] of LOCKFILES) {
+        if (await exists(path.join(dir, file))) {
+          name = pm;
+          break;
+        }
+      }
+    }
+
+    if (name && KNOWN_PMS.includes(name)) {
+      const yarnBerry =
+        name === 'yarn' &&
+        ((field?.version && Number.parseInt(field.version, 10) >= 2) ||
+          (await exists(path.join(dir, '.yarnrc.yml'))));
+      return {
+        name,
+        version: field?.version ?? null,
+        dir,
+        hasPackageManagerField: Boolean(field),
+        yarnBerry: Boolean(yarnBerry),
+      };
+    }
+
+    const parent = path.dirname(dir);
+    // git 루트를 넘어가면 다른 프로젝트의 lockfile 을 잡을 수 있으니 거기서 멈춘다.
+    if (parent === dir || (await exists(path.join(dir, '.git')))) break;
+    dir = parent;
+  }
+
+  return {
+    name: 'unknown',
+    version: null,
+    dir: null,
+    hasPackageManagerField: false,
+    yarnBerry: false,
+  };
+}
+
+export async function detectPackageManager(root) {
+  return (await detectPackageManagerDetails(root)).name;
 }
 
 async function hasFileWithExt(dir, ext) {

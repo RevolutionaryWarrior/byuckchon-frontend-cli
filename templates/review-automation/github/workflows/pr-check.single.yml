@@ -7,6 +7,8 @@
 #   - 대상 브랜치가 dev 가 아니라면 아래 branches 를 바꾸세요.
 #   - 테스트가 있다면 마지막에 단계를 추가하세요.
 
+# @bc:note 패키지 매니저 부분(__PM_*__, @bc:pm-setup)은 bc 가 복사할 때 프로젝트에 맞게 채웁니다.
+
 name: PR Check
 
 on:
@@ -29,19 +31,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # @bc:pm-setup
+
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-          cache: npm
+          cache: __PM_CACHE__
 
       - name: 의존성 설치
-        run: npm ci
+        run: __PM_INSTALL__
 
       - name: Lint
-        run: npm run lint
+        run: __PM_RUN__ lint
 
       - name: Typecheck
-        run: npm run typecheck
+        run: __PM_RUN__ typecheck
 
       - name: Build
-        run: npm run build
+        run: __PM_RUN__ build

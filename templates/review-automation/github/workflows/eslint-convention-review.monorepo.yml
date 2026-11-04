@@ -4,6 +4,8 @@
 # 각 패키지의 eslint.config에는 internal 플러그인이 없으므로,
 # tools/review.config.mjs 전용 config로 레포 루트에서 PR 변경 파일만 검사합니다.
 #
+# @bc:note 패키지 매니저 부분(__PM_*__, @bc:pm-setup)은 bc 가 복사할 때 프로젝트에 맞게 채웁니다.
+#
 # 규칙과 게시 스크립트는 @byuckchon-frontend/settings 가 제공합니다.
 # 프로젝트에 규칙 사본을 두지 않으므로, 규칙 변경은 settings 버전 업으로 반영됩니다.
 
@@ -29,7 +31,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
+      # @bc:pm-setup
 
       - uses: actions/setup-node@v4
         with:

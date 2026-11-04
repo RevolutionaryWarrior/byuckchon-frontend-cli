@@ -59,12 +59,23 @@ export async function ensureRequiredDependencies({
     return { installed: [], packageManager };
   }
 
-  const selectedPackageManager = installCommands[packageManager]
-    ? packageManager
-    : 'npm';
-  const [command, baseArgs] = installCommands[selectedPackageManager];
   const spec = (packageName) =>
     versions[packageName] ? `${packageName}@${versions[packageName]}` : packageName;
+
+  // 패키지 매니저를 모르면 npm 으로 강행하지 않는다.
+  // (pnpm workspace 에서 npm install 을 돌리면 workspace:* 등으로 설치가 깨진다)
+  if (!installCommands[packageManager]) {
+    return {
+      installed: [],
+      packageManager,
+      skipped: true,
+      missing: missing.map(spec),
+      missingDev: missingDev.map(spec),
+    };
+  }
+
+  const selectedPackageManager = packageManager;
+  const [command, baseArgs] = installCommands[selectedPackageManager];
 
   if (missing.length) {
     await run(command, [...baseArgs, ...missing.map(spec)], { cwd });

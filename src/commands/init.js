@@ -8,6 +8,7 @@ import {
   askProjectType,
   askMonorepoQuestions,
 } from "../prompts/initPrompts.js";
+import { prepareVersionMatrix } from "../utils/latestSettings.js";
 
 export async function initCommand() {
   console.log(
@@ -15,6 +16,9 @@ export async function initCommand() {
   );
 
   try {
+    // CLI 를 예전에 설치했어도 최신 settings 의 버전 매트릭스로 생성한다.
+    await prepareVersionMatrix();
+
     const projectType = await askProjectType();
 
     if (projectType === "monorepo") {

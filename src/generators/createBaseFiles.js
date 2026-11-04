@@ -1,12 +1,7 @@
 import fs from "fs/promises";
-import { createRequire } from "node:module";
 import path from "path";
 
-// JSON import attributes 는 Node 22+ 라서, Node 18 지원을 위해 createRequire 로 읽는다.
-const require = createRequire(import.meta.url);
-const vscodeSettings = require("@byuckchon-frontend/settings/vscode");
-
-import { readSettingsAsset } from "../utils/settingsAssets.js";
+import { readSettingsAsset, readSettingsJson } from "../utils/settingsAssets.js";
 
 async function write(filePath, content) {
   await fs.writeFile(filePath, content, "utf-8");
@@ -283,7 +278,8 @@ async function createVscodeSettings(rootDir) {
   await fs.mkdir(path.join(rootDir, ".vscode"), { recursive: true });
   await write(
     path.join(rootDir, ".vscode/settings.json"),
-    JSON.stringify(vscodeSettings, null, 2) + "\n"
+    // 최신 settings 를 받았으면 그 버전의 값을 쓴다. (utils/latestSettings.js)
+    JSON.stringify(await readSettingsJson("vscode"), null, 2) + "\n"
   );
 }
 
