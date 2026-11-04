@@ -161,8 +161,9 @@ src/assets     이미지·아이콘
 \`\`\``
     : `\`\`\`
 src/app        App Router         src/components 컴포넌트
-src/lib        공용 로직·유틸      src/hooks      커스텀 훅
-src/providers  Provider           src/constant   상수
+src/api        API 호출           src/hooks      커스텀 훅
+src/lib        공용 로직·유틸      src/constant   상수
+src/providers  Provider
 src/assets     이미지·아이콘
 \`\`\``
 }

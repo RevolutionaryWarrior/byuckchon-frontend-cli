@@ -144,7 +144,7 @@ export async function adoptCommand(opts = {}) {
     console.log(chalk.dim('  필수 의존성 유지 (이미 설치됨)'));
   }
 
-  // API 코드 컨벤션 .md 를 API 루트(src/api | src/lib/api)에 깐다 (이미 있으면 유지).
+  // API 코드 컨벤션 .md 를 API 루트(src/api)에 깐다 (이미 있으면 유지).
   try {
     const { relPath, written } = await scaffoldApiConventionDoc({
       projectRoot: cwd,
