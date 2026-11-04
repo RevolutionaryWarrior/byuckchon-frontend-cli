@@ -7,9 +7,9 @@
  *   설치 단계에선 최신 settings 가 들어온다. → 앱 의존성은 옛 매트릭스, 설정은 새 settings.
  *
  * 하는 일
- *   1) CLI 자체 버전을 npm 최신과 비교해 뒤처졌으면 멈춘다. (ensureCliUpToDate)
+ *   1) CLI 자체 버전이 npm 최신과 정확히 같지 않으면 멈춘다. (ensureCliUpToDate)
  *      버전표는 최신 settings 를 쓰는데 파일 템플릿은 설치된 CLI 것이라, 둘이 어긋나지 않게
- *      major · minor · patch 구분 없이 최신 CLI 로만 생성한다.
+ *      배포된 최신 CLI 로만 생성한다. 낮아도(옛 설치본) 높아도(배포 전 로컬 빌드) 멈춘다.
  *   2) npm 의 최신 settings 버전이 CLI 에 포함된 것보다 높으면 그 버전을 받아(npm pack)
  *      versions · nvmrc · turbo.json · vscode 등을 그 버전에서 읽는다.
  *   3) 네트워크 실패 등은 경고만 하고 CLI 에 포함된 settings 로 계속 진행한다.
@@ -122,8 +122,9 @@ const UPDATE_HINT = `npm i -g ${CLI_PKG}@latest   또는   npx ${CLI_PKG}@latest
 
 /**
  * 사용 전에 CLI 버전을 검사한다.
- * - npm 최신보다 뒤처졌으면(major · minor · patch 무관) 업데이트 명령을 보여주고 종료한다.
+ * - npm 최신과 다르면(낮든 높든, major · minor · patch 무관) 안내를 보여주고 종료한다.
  * - npm 에 접속하지 못하면 경고만 하고 계속한다.
+ * - CLI 자체를 개발할 때는 BC_SKIP_CLI_CHECK=1 로 건너뛴다.
  */
 export async function ensureCliUpToDate() {
   if (process.env.BC_SKIP_CLI_CHECK) return { status: 'skipped' };
@@ -139,10 +140,18 @@ export async function ensureCliUpToDate() {
     return { status: 'unknown', current };
   }
 
-  if (compareVersions(latest, current) > 0) {
+  const diff = compareVersions(latest, current);
+  if (diff > 0) {
     console.log(chalk.red(`\n  ✗ ${CLI_PKG} ${current} 은(는) 최신 버전이 아닙니다. (최신 ${latest})`));
-    console.log(chalk.dim('    최신 CLI 로만 생성합니다. 업데이트 후 다시 실행하세요.'));
+    console.log(chalk.dim('    배포된 최신 CLI 로만 생성합니다. 업데이트 후 다시 실행하세요.'));
     console.log(chalk.white(`\n    ${UPDATE_HINT}\n`));
+    process.exit(1);
+  }
+  if (diff < 0) {
+    console.log(chalk.red(`\n  ✗ ${CLI_PKG} ${current} 은(는) npm 에 배포된 최신(${latest})보다 높은, 배포 전 버전입니다.`));
+    console.log(chalk.dim('    배포된 최신 CLI 로만 생성합니다. 배포된 버전으로 다시 실행하세요.'));
+    console.log(chalk.white(`\n    ${UPDATE_HINT}`));
+    console.log(chalk.dim('    (CLI 를 개발 중이면 BC_SKIP_CLI_CHECK=1 로 건너뛸 수 있습니다)\n'));
     process.exit(1);
   }
   return { status: 'latest', current, latest };
