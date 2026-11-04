@@ -6,10 +6,7 @@ import inquirer from 'inquirer';
 
 import { detectProjectContext, summarizeContext } from '../context/detect.js';
 import { CONFIG_PATHS } from '../config/index.js';
-import {
-  apiRootForFramework,
-  scaffoldApiConventionDoc,
-} from '../generators/apiConventionDoc.js';
+import { scaffoldApiConventionDoc } from '../generators/apiConventionDoc.js';
 import { scaffoldReviewAutomation } from '../generators/scaffoldReviewAutomation.js';
 import { detectMonorepoRoot } from '../context/monorepo.js';
 import { ensureRequiredDependencies } from '../utils/ensureRequiredDependencies.js';
@@ -25,7 +22,7 @@ import { workflowPackageManagerFrom } from '../generators/workflowPackageManager
  *
  * 흐름:
  *   1) 자동 감지(framework, styling, language, routing 등) 결과를 보여주고
- *   2) Figma·OpenAPI URL 만 추가로 묻고 (bc chat 모델은 기존 bc.config.json 값 유지)
+ *   2) OpenAPI URL 만 추가로 묻고
  *   3) bc.config.json 생성/덮어쓰기 (이미 있으면 confirm)
  */
 export async function adoptCommand(opts = {}) {
@@ -83,12 +80,6 @@ export async function adoptCommand(opts = {}) {
   const answers = await inquirer.prompt([
     {
       type: 'input',
-      name: 'figmaUrl',
-      message: 'Figma 파일/노드 URL (선택, 엔터로 건너뛰기):',
-      default: existing?.design?.figma ?? '',
-    },
-    {
-      type: 'input',
       name: 'openapiUrl',
       message: '백엔드 OpenAPI(Swagger) URL (선택):',
       default: existing?.api?.openapi ?? '',
@@ -103,26 +94,10 @@ export async function adoptCommand(opts = {}) {
 
   const next = {
     $schema: 'https://byuckchon.dev/bc.schema.json',
-    ai: {
-      // 모델은 묻지 않는다. 기존 값이 있으면 유지하고, 없으면 전역 설정 → 기본 모델을 따른다.
-      model: existing?.ai?.model ?? null,
-    },
-    design: {
-      figma: answers.figmaUrl?.trim() || null,
-      figmaTokenEnv: existing?.design?.figmaTokenEnv ?? 'FIGMA_TOKEN',
-    },
     api: {
       openapi: answers.openapiUrl?.trim() || null,
       baseUrl: answers.apiBaseUrl?.trim() || null,
     },
-    context: existing?.context ?? {
-      include: ['src/**/*.{ts,tsx,js,jsx}', 'app/**/*.{ts,tsx,js,jsx}', 'bc.config.json'],
-      exclude: ['**/*.test.*', '**/__mocks__/**', 'node_modules/**', 'dist/**', '.next/**'],
-      maxFiles: 20,
-    },
-    docs: existing?.docs ?? [
-      path.posix.join(apiRootForFramework(ctx.framework), 'api-codegen.md'),
-    ],
     framework: ctx.framework,
     detected: {
       language: ctx.language,
@@ -252,18 +227,10 @@ export async function adoptCommand(opts = {}) {
     );
   }
 
-  console.log();
-  console.log(chalk.dim('  다음:'));
-  if (!process.env.ANTHROPIC_API_KEY) {
-    console.log(chalk.dim('    bc config set-key anthropic    # API 키 등록'));
+  if (next.api.openapi) {
+    console.log();
+    console.log(chalk.dim('  다음:'));
+    console.log(chalk.dim('    bc gen api-types               # OpenAPI → TS 타입 생성'));
   }
-  if (next.design.figma && !process.env.FIGMA_TOKEN) {
-    console.log(
-      chalk.dim(
-        '    .env 에 FIGMA_TOKEN=figd-... 추가  # https://www.figma.com/settings 에서 발급',
-      ),
-    );
-  }
-  console.log(chalk.dim('    bc chat                        # 이 프로젝트 컨텍스트로 대화'));
   console.log();
 }

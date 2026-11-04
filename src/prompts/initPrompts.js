@@ -19,11 +19,8 @@ const FRAMEWORK_CHOICES = [
   { name: 'Next.js  (App Router + TypeScript)', value: 'next' },
 ];
 
-// Figma · OpenAPI URL 은 묻지 않는다. bc chat 용 컨텍스트인데 생성 단계에서는 거의 쓰지 않아서,
-// 필요하면 bc.config.json 의 design.figma · api.openapi 에 직접 넣거나 bc adopt 로 채운다.
-//
-// init · add 는 bc chat 기본 모델도 묻지 않는다. bc.config.json 의 ai.model 은 null 로 두고,
-// bc chat 은 전역 설정(bc config set-model) → 기본 모델(DEFAULT_MODEL_ID) 순서로 고른다.
+// OpenAPI URL 은 묻지 않는다. 생성 단계에서는 거의 쓰지 않아서,
+// 필요하면 bc.config.json 의 api.openapi 에 직접 넣거나 bc adopt 로 채운다.
 
 /** 단일 프로젝트 vs 모노레포 선택. */
 export async function askProjectType() {

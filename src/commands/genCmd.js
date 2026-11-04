@@ -2,7 +2,7 @@ import path from 'node:path';
 
 import chalk from 'chalk';
 
-import { loadEffectiveConfig } from '../config/index.js';
+import { loadProjectConfig } from '../config/index.js';
 import { generateApiTypes } from '../openapi/codegen.js';
 import { loadOpenApi } from '../openapi/fetch.js';
 
@@ -19,8 +19,8 @@ const DEFAULT_OUT = 'src/api/types.gen.ts';
  *   --out <path>  (기본 src/api/types.gen.ts)
  */
 export async function genApiTypesCommand(opts = {}) {
-  const cfg = await loadEffectiveConfig();
-  const sourceInput = opts.source || cfg.effective.api?.openapi;
+  const { config } = await loadProjectConfig();
+  const sourceInput = opts.source || config.api?.openapi;
   if (!sourceInput) {
     console.error(chalk.red('\n  OpenAPI 출처를 못 찾았습니다.'));
     console.error(chalk.dim('    --source <url|path> 로 직접 주거나'));
@@ -52,8 +52,7 @@ export async function genApiTypesCommand(opts = {}) {
     console.log(chalk.dim(`    ${res.outFile}\n`));
     console.log(chalk.dim('  다음:'));
     console.log(chalk.dim('    - 코드에서 import 해서 사용:'));
-    console.log(chalk.dim(`        import type { paths, components } from "${path.relative(process.cwd(), outFile).replace(/\.[^.]+$/, '')}";`));
-    console.log(chalk.dim('    - bc index 를 다시 돌리면 RAG 컨텍스트에도 반영됨\n'));
+    console.log(chalk.dim(`        import type { paths, components } from "${path.relative(process.cwd(), outFile).replace(/\.[^.]+$/, '')}";\n`));
   } catch (err) {
     console.error(chalk.red('\n  타입 생성 실패: ') + (err?.message ?? err) + '\n');
     process.exit(1);

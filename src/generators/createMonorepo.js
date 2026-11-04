@@ -208,9 +208,6 @@ Thumbs.db
 # Logs
 npm-debug.log*
 pnpm-debug.log*
-
-# bc
-.bc/
 `,
   );
 
