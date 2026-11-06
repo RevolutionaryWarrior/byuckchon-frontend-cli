@@ -10,7 +10,7 @@ import { createPackageJson } from "./createPackageJson.js";
 import { createReadme } from "./createReadme.js";
 import { scaffoldApiConventionDoc } from "./apiConventionDoc.js";
 import { scaffoldReviewAutomation } from "./scaffoldReviewAutomation.js";
-import { BYUCKCHON_PACKAGES } from "./install.js";
+import { BYUCKCHON_PACKAGES, formatGeneratedFiles } from "./install.js";
 
 const exec = promisify(execCallback);
 
@@ -36,4 +36,8 @@ export async function createProject(config) {
   // 최신 버전(latest 포함) 의존성을 실제로 설치해 lockfile까지 생성
   await exec("npm install", { cwd: rootDir });
   await exec(`npm install ${BYUCKCHON_PACKAGES.join(" ")}`, { cwd: rootDir });
+
+  // 생성한 파일을 팀 prettier 규칙으로 한 번 정리한다.
+  // 템플릿 문자열(따옴표 · import 줄바꿈 등)이 규칙과 조금만 달라도 첫 PR 의 format:check 가 실패한다.
+  await formatGeneratedFiles({ cwd: rootDir, command: "npm run format" });
 }

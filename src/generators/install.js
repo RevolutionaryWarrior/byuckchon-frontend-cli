@@ -13,6 +13,22 @@ export const BYUCKCHON_PACKAGES = [
   '@byuckchon-frontend/settings',
 ];
 
+/**
+ * 생성한 파일을 프로젝트의 prettier 설정으로 정리한다. 실패해도 생성은 성공으로 둔다(경고만).
+ * @param {object} args
+ * @param {string} args.cwd
+ * @param {string} args.command 실행할 명령 (예: 'npm run format')
+ */
+export async function formatGeneratedFiles({ cwd, command }) {
+  try {
+    await exec(command, { cwd });
+  } catch (err) {
+    console.log(chalk.yellow('  ⚠ 생성한 파일 포맷 정리에 실패했습니다. 직접 실행해주세요:'));
+    console.log(chalk.dim(`    ${command}`));
+    console.log(chalk.dim(`    ${String(err?.message ?? err).split('\n')[0]}\n`));
+  }
+}
+
 async function hasPnpm() {
   try {
     await exec('pnpm --version');
@@ -29,8 +45,10 @@ async function hasPnpm() {
  * @param {object} args
  * @param {string} args.root       모노레포 루트
  * @param {string} args.appPkgName 앱 package.json name (예: @scope/web)
+ * @param {string} [args.formatDir]  설치 후 prettier 로 정리할 범위.
+ *   없으면 모노레포 전체(bc init), 'apps/<name>' 이면 새 앱만(bc add — 기존 코드는 건드리지 않음)
  */
-export async function installMonorepoDeps({ root, appPkgName }) {
+export async function installMonorepoDeps({ root, appPkgName, formatDir }) {
   if (!(await hasPnpm())) {
     console.log(
       chalk.yellow('\n  ⚠ pnpm 이 없어 의존성 설치를 건너뜁니다.'),
@@ -67,4 +85,12 @@ export async function installMonorepoDeps({ root, appPkgName }) {
       );
     }
   }
+
+  // 생성한 파일을 팀 prettier 규칙으로 한 번 정리한다. (첫 PR 의 format:check 실패 방지)
+  await formatGeneratedFiles({
+    cwd: root,
+    command: formatDir
+      ? `pnpm exec prettier --write "${formatDir}/**/*.{ts,tsx,js,jsx,cjs,mjs,json,md,yml,yaml}" --ignore-path .gitignore --ignore-path .prettierignore --no-error-on-unmatched-pattern`
+      : 'pnpm format',
+  });
 }

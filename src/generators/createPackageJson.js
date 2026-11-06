@@ -21,9 +21,9 @@ export async function createPackageJson(rootDir, config) {
           lint: 'eslint . --ext ts,tsx',
           preview: 'vite preview',
           format:
-            'prettier --write "src/**/*.{ts,tsx,css}" "tools/**/*.{js,cjs,json,md}"',
+            'prettier --write "src/**/*.{ts,tsx,css}" "tools/**/*.{js,cjs,mjs,json,md}" --no-error-on-unmatched-pattern',
           'format:check':
-            'prettier --check "src/**/*.{ts,tsx,css}" "tools/**/*.{js,cjs,json,md}"',
+            'prettier --check "src/**/*.{ts,tsx,css}" "tools/**/*.{js,cjs,mjs,json,md}" --no-error-on-unmatched-pattern',
         }
       : {
           dev: 'next dev',
@@ -33,9 +33,9 @@ export async function createPackageJson(rootDir, config) {
           start: 'next start',
           lint: 'eslint .',
           format:
-            'prettier --write "src/**/*.{ts,tsx,css}" "tools/**/*.{js,cjs,json,md}"',
+            'prettier --write "src/**/*.{ts,tsx,css}" "tools/**/*.{js,cjs,mjs,json,md}" --no-error-on-unmatched-pattern',
           'format:check':
-            'prettier --check "src/**/*.{ts,tsx,css}" "tools/**/*.{js,cjs,json,md}"',
+            'prettier --check "src/**/*.{ts,tsx,css}" "tools/**/*.{js,cjs,mjs,json,md}" --no-error-on-unmatched-pattern',
         },
     dependencies: {
       react: isReact ? versions.react : versions['next-react'],
