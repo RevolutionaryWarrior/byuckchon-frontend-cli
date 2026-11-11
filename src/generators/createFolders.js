@@ -1,6 +1,8 @@
 import fs from 'fs/promises';
 import path from 'path';
 
+import { createThemeFiles } from './theme.js';
+
 /**
  * React 폴더 구조
  * lib → store → api → hooks → context → components → layouts → pages
@@ -114,9 +116,10 @@ export { cn } from '@byuckchon-frontend/utils';
     path.join(rootDir, 'src/lib/query/index.ts'),
     "export { cacheConfig } from './cacheConfig';\n",
   );
+  await createThemeFiles(rootDir, config.framework);
   await writeFile(
     path.join(rootDir, 'src/lib/index.ts'),
-    "export * from './query';\nexport * from './utils';\n",
+    "export * from './query';\nexport * from './theme';\nexport * from './utils';\n",
   );
   await writeFile(path.join(rootDir, 'src/hooks/index.ts'), '// 커스텀 훅\n');
   await writeFile(path.join(rootDir, 'src/components/index.ts'), '// 재사용 가능한 UI 컴포넌트\n');
