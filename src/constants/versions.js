@@ -15,7 +15,20 @@ import { versions as shared } from '@byuckchon-frontend/settings/versions';
 
 import { settingsVersion } from '../utils/settingsAssets.js';
 
+/**
+ * settings 에 아직 없는 Electron 스택 버전.
+ *
+ * TODO: 검증이 끝나면 @byuckchon-frontend/settings 의 versions 로 옮기고 여기서 지운다.
+ * 그 전에라도 settings 에 같은 키가 생기면 settings 값이 이긴다. (아래 펼치는 순서)
+ */
+const ELECTRON_VERSIONS = {
+  electron: '^45.3.0',
+  'electron-vite': '^6.0.0',
+  'electron-builder': '^26.18.0',
+};
+
 export const versions = {
+  ...ELECTRON_VERSIONS,
   ...shared,
   '@byuckchon-frontend/settings': `^${settingsVersion()}`,
 };
@@ -27,7 +40,7 @@ export const versions = {
  */
 export function replaceVersions(matrix, version) {
   for (const key of Object.keys(versions)) delete versions[key];
-  Object.assign(versions, matrix, {
+  Object.assign(versions, ELECTRON_VERSIONS, matrix, {
     '@byuckchon-frontend/settings': `^${version}`,
   });
 }

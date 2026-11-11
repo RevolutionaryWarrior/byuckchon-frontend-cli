@@ -9,10 +9,11 @@ const TEMPLATE_PATH = path.resolve(
 
 /**
  * API 루트 폴더. React · Next 모두 src/api 로 통일한다.
- * (bc gen api-types 의 기본 출력 src/api/types.gen.ts 와 같은 위치)
+ * Electron 은 API 를 renderer 가 호출하므로 renderer 의 src/api 다.
+ * (bc gen api-types 의 기본 출력 <API 루트>/types.gen.ts 와 같은 위치)
  */
-export function apiRootForFramework() {
-  return 'src/api';
+export function apiRootForFramework(framework) {
+  return framework === 'electron' ? 'src/renderer/src/api' : 'src/api';
 }
 
 /**

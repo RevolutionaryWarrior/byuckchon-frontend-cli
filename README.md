@@ -117,6 +117,7 @@ bc
 | 형태 | 생성 결과 | 적합한 경우 |
 | --- | --- | --- |
 | 단일 프로젝트 | React(Vite) 또는 Next.js(App Router)  | 하나의 웹 서비스를 빠르게 시작할 때 |
+| 단일 프로젝트 (Desktop) | Electron(electron-vite) + React renderer | 데스크톱 앱을 사내 lint · CI · API 규칙으로 시작할 때 |
 | 모노레포 | pnpm + Turborepo 루트, `apps/`, `packages/` | 여러 웹 앱과 공용 패키지를 함께 관리할 때 |
 
 생성 프로젝트에는 TypeScript, ESLint, Prettier, Tailwind, `bc.config.json`, API 코드 가이드가
@@ -125,6 +126,22 @@ bc
 ```bash
 bc init
 ```
+
+#### Desktop (Electron)
+
+단일 프로젝트에서 `Desktop (Electron + React + TypeScript)` 를 고르면 electron-vite 프로젝트가 만들어집니다.
+(모노레포 `bc add` 에서는 아직 고를 수 없습니다)
+
+```text
+src/main/index.ts       BrowserWindow (contextIsolation · sandbox 켜짐, nodeIntegration 꺼짐) + ipcMain.handle
+src/preload/index.ts    contextBridge 로 window.api 만 노출
+src/preload/api.d.ts    window.api 타입
+src/renderer/           웹 React 와 같은 구조 · 규칙 (tailwind · tokens · src/api)
+electron.vite.config.ts · electron-builder.yml (mac dmg · win nsis)
+```
+
+renderer 는 `window.api` 로만 main 에 요청한다는 IPC 규칙이 `AGENTS.md` 에 들어가고,
+PR Check workflow 는 웹 단일 프로젝트와 같습니다. 아이콘 · 코드 서명 · 자동 업데이트는 생성된 README 를 보고 채웁니다.
 
 ### 기존 프로젝트 연결: `bc adopt`
 

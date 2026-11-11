@@ -30,7 +30,11 @@ export async function createBcConfig(rootDir, config) {
       },
       packageManager: 'npm',
       routing: config.framework === 'next' ? 'app-router' : null,
-      componentDirs: ['src/components'],
+      componentDirs: [
+        config.framework === 'electron'
+          ? 'src/renderer/src/components'
+          : 'src/components',
+      ],
       designTokensFiles: [],
       hasStorybook: false,
       hasTests: null,

@@ -7,7 +7,7 @@ async function write(filePath, content) {
   await fs.writeFile(filePath, content, "utf-8");
 }
 
-const TOKEN_CONFIG_JS = `/**
+export const TOKEN_CONFIG_JS = `/**
  * 디자이너가 넘긴 src/tokens.json 을 src/tokens.css 로 변환하는 설정.
  *
  *   npm run tokens:build
@@ -30,7 +30,9 @@ export default defineTokenConfig();
  * 매 세션 컨텍스트에 실리므로 짧게 유지한다. 상세 API 는 각 패키지 README 로 넘긴다.
  */
 export function agentsDoc(framework) {
-  const isReact = framework === "react";
+  const isElectron = framework === "electron";
+  // Electron renderer 는 웹 React 와 같은 규칙을 따른다. (폴더만 src/renderer/src 아래)
+  const isReact = framework === "react" || isElectron;
 
   return `# 작업 규칙
 
@@ -151,7 +153,9 @@ PR 제목은 첫 토막이 대괄호로 자동으로 붙습니다. → \`[featur
 ## 6. 폴더 구조
 
 ${
-  isReact
+  isElectron
+    ? ELECTRON_FOLDERS_DOC
+    : isReact
     ? `\`\`\`
 src/lib        공용 로직·유틸      src/store      전역 상태
 src/api        API 호출           src/hooks      커스텀 훅
@@ -168,13 +172,55 @@ src/assets     이미지·아이콘
 \`\`\``
 }
 
-경로 별칭은 \`@/\` 를 씁니다. (\`@/lib/utils/cn\`)
-`;
+경로 별칭은 \`@/\` 를 씁니다. (\`@/lib/utils/cn\`)${
+    isElectron ? "  — renderer(src/renderer/src) 기준입니다." : ""
+  }
+${isElectron ? ELECTRON_IPC_DOC : ""}`;
 }
+
+const ELECTRON_FOLDERS_DOC = `\`\`\`
+src/main       메인 프로세스 (Node · OS 접근 · IPC 핸들러)
+src/preload    renderer 에 window.api 를 노출하는 다리
+src/renderer   화면 (웹 React 와 같은 구조)
+  src/lib        공용 로직·유틸      src/store      전역 상태
+  src/api        API 호출           src/hooks      커스텀 훅
+  src/context    Context            src/components 컴포넌트
+  src/layouts    레이아웃           src/pages      페이지
+  src/assets     이미지·아이콘
+\`\`\``;
+
+/** Electron 전용 — 보안 경계(main ↔ renderer)를 지키는 IPC 규칙. */
+const ELECTRON_IPC_DOC = `
+## 7. Electron IPC 규칙
+
+renderer 는 브라우저와 같다고 생각하세요. **파일 · 네트워크 소켓 · 셸 같은 OS 기능은 main 에서만** 다룹니다.
+
+- renderer 는 \`window.api\` 만 씁니다. \`electron\` · \`fs\` · \`child_process\` 를 import 하지 않습니다.
+- BrowserWindow 의 \`contextIsolation: true\` · \`sandbox: true\` · \`nodeIntegration: false\` 는 끄지 않습니다.
+- \`ipcRenderer\` 를 통째로 노출하지 않습니다. 기능 하나당 함수 하나만 노출합니다.
+
+**새 기능을 추가할 때는 세 군데를 함께 고칩니다.**
+
+| 위치 | 할 일 |
+| --- | --- |
+| \`src/main/index.ts\` | \`ipcMain.handle('채널', handler)\` — **입력값을 여기서 검증** (zod 등) |
+| \`src/preload/index.ts\` | \`api\` 객체에 \`이름: (...) => ipcRenderer.invoke('채널', ...)\` 추가 |
+| \`src/preload/api.d.ts\` | \`Window['api']\` 타입에 같은 함수 시그니처 추가 |
+
+renderer 가 보낸 값은 신뢰하지 않습니다. 경로 · URL · 숫자 범위는 main 의 핸들러에서 검증한 뒤 쓰세요.
+
+\`\`\`ts
+// src/main/index.ts
+ipcMain.handle('file:read', async (_event, raw: unknown) => {
+  const filePath = z.string().parse(raw);
+  // ... 허용된 폴더인지 확인 후 읽기
+});
+\`\`\`
+`;
 
 // ─── 공통 설정 파일 ────────────────────────────────────────────────────────────
 
-async function createPrettierConfig(rootDir) {
+export async function createPrettierConfig(rootDir) {
   // 규칙 본체는 @byuckchon-frontend/settings 가 관리한다.
   // 프로젝트는 참조만 하므로, 팀 표준이 바뀌면 settings 버전만 올리면 된다.
   await write(
@@ -187,7 +233,7 @@ export default byuckchon;
   );
 }
 
-async function createEslintConfig(rootDir) {
+export async function createEslintConfig(rootDir) {
   await write(
     path.join(rootDir, "eslint.config.js"),
     `import byuckchon from '@byuckchon-frontend/settings/eslint/react';
@@ -222,7 +268,7 @@ export default [
   );
 }
 
-async function createGitignore(rootDir, framework) {
+export async function createGitignore(rootDir, framework) {
   const base = `# Dependencies
 node_modules/
 
@@ -264,13 +310,17 @@ dist-ssr/
 out/
 `;
 
-  await write(
-    path.join(rootDir, ".gitignore"),
-    base + (framework === "next" ? nextExtra : "")
-  );
+  // electron-vite 빌드 결과. (electron-builder 설치 파일은 dist/ 로 나가서 위에서 이미 무시된다)
+  const electronExtra = `
+# Electron
+out/
+`;
+
+  const extra = { next: nextExtra, electron: electronExtra }[framework] ?? "";
+  await write(path.join(rootDir, ".gitignore"), base + extra);
 }
 
-async function createVscodeSettings(rootDir) {
+export async function createVscodeSettings(rootDir) {
   // settings.json 은 extends 가 없어서 참조가 불가능하다. 실제 파일이 있어야 한다.
   // 그래서 settings 가 들고 있는 값을 "복사"하되, 나중에 팀 표준이 바뀌면
   //   npx byuckchon-settings-sync vscode

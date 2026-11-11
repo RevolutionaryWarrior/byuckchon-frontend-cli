@@ -30,7 +30,10 @@ export async function askProjectType() {
       name: 'projectType',
       message: '무엇을 생성할까요?',
       choices: [
-        { name: '단일 프로젝트  (React 또는 Next 하나)', value: 'single' },
+        {
+          name: '단일 프로젝트  (React · Next · Desktop(Electron) 중 하나)',
+          value: 'single',
+        },
         {
           name: '모노레포  (pnpm + Turborepo, 앱 하나로 시작 · 이후 bc add 로 추가)',
           value: 'monorepo',
@@ -114,6 +117,8 @@ export async function askInitQuestions() {
       choices: [
         { name: 'React  (Vite + TypeScript)', value: 'react' },
         { name: 'Next.js  (App Router + TypeScript)', value: 'next' },
+        // 모노레포(bc add)에는 아직 없다. 단일 프로젝트 전용.
+        { name: 'Desktop  (Electron + React + TypeScript)', value: 'electron' },
       ],
     },
   ]);
