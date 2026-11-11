@@ -230,6 +230,36 @@ PR이 `dev` 브랜치를 대상으로 할 때, workflow가 기계적으로 판�
 모노레포에서는 workflow와 `tools/`가 루트에 한 번만 존재하며, PR에서 변경된 TypeScript 파일을
 대상으로 검사합니다.
 
+### 운영 배포 + 릴리즈 노트: `bc deploy` (프로토타입)
+
+배포가 **성공했을 때만** 태그와 GitHub Release 를 남깁니다. 실패한 배포는 기록되지 않으므로
+최신 Release 가 곧 지금 운영에 떠 있는 버전입니다.
+
+```bash
+bc deploy        # 질문 4개 — Enter 만 눌러도 기본값
+bc deploy --yes  # 묻지 않고 기본값 (날짜 버전 · GitHub Release · Slack 없음)
+```
+
+| 질문 | 기본값 |
+| --- | --- |
+| 릴리즈 노트 단계를 남길까요? | Yes |
+| 버전 이름 | 날짜 (`web@2026.11.05`, 같은 날 재배포는 `.2`) — SemVer 는 준비 중 |
+| 남길 곳 | GitHub Release (CHANGELOG.md 는 사용 안 함) |
+| Slack 웹훅 | 선택 — GitHub Secret **이름**만 저장, URL 은 저장하지 않음 |
+
+- `bc.config.json` 에 `"release": { "version": "date", "tagPrefix": "web@", ... }` 를 저장합니다.
+  태그 접두사는 패키지 이름에서 정하며 `--prefix` 로 바꿀 수 있습니다.
+- `.github/workflows/deploy.yml` 을 만듭니다. `deploy` job 의 배포 단계는 아직 비어 있으니
+  (`TODO: S3 · Lightsail`) 프로젝트에 맞게 채워주세요.
+- `release` job 은 `needs: deploy` 로 묶여 있고 `byuckchon-release-notes`(settings)로
+  커밋을 ✨ 기능 / 🐛 수정 으로 묶어 Release 노트를 만듭니다.
+
+다음 단계 (아직 범위 밖)
+
+- **Amplify** — 배포가 GitHub Actions 밖에서 일어나므로, 배포 성공 신호를 받아 release 를 실행할 방법이 필요합니다.
+- **모노레포 앱별 태그** — `web@` · `admin@` 를 앱마다 따로 남기고 경로별로 커밋을 나누는 일.
+- **스테이징 pre-release** — 스테이징 배포는 pre-release 로 남기는 흐름.
+
 ## 제한 사항
 
 - ESLint Convention Review는 기본적으로 `dev` 대상 PR에서 실행됩니다. 다른 기본 브랜치를 쓰면
