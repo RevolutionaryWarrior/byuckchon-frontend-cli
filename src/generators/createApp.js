@@ -87,6 +87,8 @@ async function createAppPackageJson(appDir, config, scope) {
       // 단일 프로젝트(createPackageJson)와 같이 React · Next 공통으로 넣는다.
       // AGENTS.md · api-codegen.md · cacheConfig 가 react-query 를 전제한다.
       '@tanstack/react-query': versions['@tanstack/react-query'],
+      // 에러 수집. 단일 프로젝트와 같이 기본 포함, DSN 을 넣기 전까지는 꺼져 있다.
+      '@sentry/react': versions['@sentry/react'],
       ...(isReact
         ? {
             axios: versions.axios,

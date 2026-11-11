@@ -15,7 +15,17 @@ import { versions as shared } from '@byuckchon-frontend/settings/versions';
 
 import { settingsVersion } from '../utils/settingsAssets.js';
 
+/**
+ * settings 매트릭스에 아직 없는 패키지. CLI 가 임시로 들고 있다.
+ * settings/versions 에 같은 키가 생기면 그쪽 값이 이긴다 — 옮긴 뒤 여기서 지운다.
+ */
+const cliOnly = {
+  // 에러 수집. bc init 기본 포함, DSN 을 넣기 전까지는 꺼져 있다. (src/lib/utils/errorHandler.ts)
+  '@sentry/react': '^11.12.0',
+};
+
 export const versions = {
+  ...cliOnly,
   ...shared,
   '@byuckchon-frontend/settings': `^${settingsVersion()}`,
 };
@@ -27,7 +37,7 @@ export const versions = {
  */
 export function replaceVersions(matrix, version) {
   for (const key of Object.keys(versions)) delete versions[key];
-  Object.assign(versions, matrix, {
+  Object.assign(versions, cliOnly, matrix, {
     '@byuckchon-frontend/settings': `^${version}`,
   });
 }

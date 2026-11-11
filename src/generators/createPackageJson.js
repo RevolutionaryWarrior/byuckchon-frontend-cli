@@ -43,6 +43,8 @@ export async function createPackageJson(rootDir, config) {
       ...(isReact ? {} : { next: versions.next }),
       zustand: versions.zustand,
       '@tanstack/react-query': versions['@tanstack/react-query'],
+      // 에러 수집. DSN(.env.local)을 넣기 전까지는 init 하지 않는다.
+      '@sentry/react': versions['@sentry/react'],
       ...(isReact
         ? {
             axios: versions.axios,

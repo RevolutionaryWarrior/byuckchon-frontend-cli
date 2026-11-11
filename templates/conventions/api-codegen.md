@@ -14,8 +14,8 @@
 1. **추측 금지.** Swagger 에 없는 필드/엔드포인트를 임의로 만들지 않는다.
    스키마가 모호하면 기존 리소스 폴더(예: `user/`)를 먼저 `read_file` 로 확인하고,
    그래도 불명확하면 사용자에게 한 번 묻는다.
-2. **기존 코드 우선.** 공용 유틸(`cacheConfig`, `queryKey`, `captureSentryError`, `metaSchema`,
-   `PaginationParams` 등)은 새로 만들지 말고 그대로 가져다 쓴다. import 경로가 확실치 않으면
+2. **기존 코드 우선.** 공용 유틸(`cacheConfig`, `queryKey`, `captureSentryError`, `isCriticalError`,
+   에러 클래스(`NetworkError` 등), `metaSchema`, `PaginationParams` 등)은 새로 만들지 말고 그대로 가져다 쓴다. import 경로가 확실치 않으면
    `search_code` 로 실제 export 위치를 확인한다.
 3. **계약 파일은 항상 함께.** React는 `api / zod / type / service / index`를 한 번에 생성한다.
    Next.js는 공용 `zod / type`, 서버 기본 호출 파일, 필요한 경우 Client 호출 파일과 service를 생성한다.
@@ -31,7 +31,7 @@ API 루트는 React · Next.js 모두 `src/api`다.
 
 ```
 src/api/
-├── instance.ts               # React: axios 인스턴스
+├── instance.ts               # React: axios 인스턴스 (응답 에러 → 에러 클래스 변환)
 ├── index.ts                  # 모든 API 모듈 export
 └── user/                     # 리소스 폴더 (소문자)
     ├── user.api.ts           # React: axios / Next.js: Server fetch 호출
@@ -95,6 +95,8 @@ import { serverAuthHttp } from '@/api/http/serverAuthHttp';
 - `publicHttp`: 양쪽에서 안전할 때만 공용 사용.
 - 기존 fetch wrapper를 먼저 찾는다. 없으면 자동 생성하지 말고 fetch/auth 방식을 사용자에게 묻는다.
 - `cookies()`/`headers()`는 모듈 최상위가 아니라 요청 함수 내부에서 호출한다.
+- fetch wrapper는 실패 응답을 `@/lib`의 `createHttpError(status, body)`로 바꿔 던진다.
+  응답이 없으면(`fetch` 자체가 reject) `NetworkError`. React의 axios 인터셉터와 같은 에러 클래스를 쓴다.
 - 서버 비밀값에 `NEXT_PUBLIC_`을 붙이지 않는다.
 - 기존 Route Handler/BFF, base URL, CORS, Edge Runtime 정책을 확인하고 재사용한다.
 
@@ -231,7 +233,7 @@ export type UpdateUser = {
 공통 import:
 
 ```ts
-import { cacheConfig, captureSentryError, queryKey } from '@/lib';
+import { cacheConfig, captureSentryError, isCriticalError, queryKey } from '@/lib';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 ```
 
@@ -242,8 +244,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
   - 실패 시 `console.error(...)` 후 **원본 `data` 그대로 반환**(throw 금지).
   - 성공 시 `parsed.data` 반환.
 - **변경(useMutation)** 은 `onSuccess` 에서 관련 `queryKey` 를 `invalidateQueries`.
-- 모든 훅의 `onError` 에서 `captureSentryError(error, { location, action })`.
+- **조회 훅에는 `onError` 를 달지 않는다.** QueryClient 의 `throwOnError: isCriticalError` 가
+  네트워크 · 5xx 를 ErrorBoundary 로 올리고, ErrorBoundary 가 Sentry 로 보낸다.
+- **변경 훅** 의 `onError` 에서 치명적인 에러만 `captureSentryError(error, { location, action })`.
   - `location` = 훅 이름(`'useDeleteUser'`), `action` = 호출 함수명(`'deleteUser'`).
+  - 그 외(401 · 403 · 404 · 4xx)는 service 에서 처리하지 않는다. 화면에서 `mutate(..., { onError })` 로
+    `showToast(error.message)` 처럼 보여준다. (메시지는 서버 `message` 우선, 없으면 클래스 기본 문구)
 - 조회 훅은 마지막에 `...cacheConfig.<tier>` + `...options` 펼침.
 - 캐시 tier: 자주 바뀜 `realtime`/`shortLived`, 보통 `mediumLived`, 잘 안 바뀜 `longLived`, 불변 `immutable`.
 
@@ -277,7 +283,9 @@ export const useDeleteUser = () => {
       queryClient.invalidateQueries({ queryKey: queryKey.user.all });
     },
     onError: (error) => {
-      captureSentryError(error, { location: 'useDeleteUser', action: 'deleteUser' });
+      if (isCriticalError(error)) {
+        captureSentryError(error, { location: 'useDeleteUser', action: 'deleteUser' });
+      }
     },
   });
 };
@@ -307,6 +315,14 @@ export * from './user';
 - React 전용 규칙이다.
 - 이미 있으면 **건드리지 않는다.** baseURL/interceptor 설정이 여기 모여 있다.
 - 새 리소스는 항상 이 `baseInstance` 를 import 해서 쓴다.
+- 응답 인터셉터가 실패를 에러 클래스로 바꿔 던진다. `*.api.ts` / service 에서 status 를 다시 분기하지 않는다.
+
+  | 조건 | 클래스 | 치명적(`isCriticalError`) |
+  | --- | --- | --- |
+  | 응답 없음 | `NetworkError` | O |
+  | 5xx | `ServerError` | O |
+  | 401 / 403 / 404 | `AuthenticationError` / `AuthorizationError` / `NotFoundError` | X |
+  | 그 외 4xx | `APIError` (`status` 포함) | X |
 
 ---
 
@@ -364,10 +380,16 @@ export const useCreateUser = () => {
       queryClient.invalidateQueries({ queryKey: queryKey.user.all });
     },
     onError: (error) => {
-      captureSentryError(error, { location: 'useCreateUser', action: 'createUser' });
+      if (isCriticalError(error)) {
+        captureSentryError(error, { location: 'useCreateUser', action: 'createUser' });
+      }
     },
   });
 };
+
+// 화면 — 치명적이지 않은 에러는 여기서 메시지로 보여준다.
+const { mutate: createUser } = useCreateUser();
+createUser(payload, { onError: (error) => showToast(error.message) });
 ```
 
 > 인자가 2개 이상이면 객체로 묶어 `*.type.ts` 에 입력 타입을 정의하고 구조분해로 받는다.
@@ -441,7 +463,7 @@ export const useGetUser = (options?: Record<string, any>) => {
 - 함수: 동사 + 리소스 (`getUserList`, `createUser`, `updateUser`).
 - 훅: `use` + 함수 의미 (`useGetUserList`, `useCreateUser`).
 - `RESOURCE` 상수로 baseURL 경로 관리, 동적 경로는 템플릿 리터럴.
-- 조회는 zod 검증(실패 시 원본 반환), 변경은 invalidate + Sentry.
+- 조회는 zod 검증(실패 시 원본 반환), 변경은 invalidate + 치명적 에러만 Sentry.
 - `index.ts` 는 service/type 만 노출, 루트 `index.ts` 에 리소스 한 줄 추가.
 - 들여쓰기 2칸, 세미콜론 사용, import 그룹: 외부 → `@/...` → 상대경로.
 
@@ -455,7 +477,7 @@ export const useGetUser = (options?: Record<string, any>) => {
 4. [ ] Swagger 응답을 zod 로 정확히 매핑(nullable/optional/enum/date/$ref).
 5. [ ] 타입은 `z.infer` 로 추론.
 6. [ ] 조회 훅 queryFn 에서 `safeParse` 후 실패 시 원본 반환.
-7. [ ] 변경 훅에 `invalidateQueries` + `captureSentryError`.
+7. [ ] 변경 훅에 `invalidateQueries` + `if (isCriticalError(error)) captureSentryError(...)`.
 8. [ ] `queryKey` 에 리소스 키(`all` 포함) 추가.
 9. [ ] 리소스 `index.ts` + 루트 `index.ts` 노출 추가.
 10. [ ] next 면 `useInfiniteQuery` + `metaSchema` + `select` 평탄화 적용.
@@ -471,6 +493,8 @@ export const useGetUser = (options?: Record<string, any>) => {
 - ❌ `index.ts` 에서 `api`/`zod` 노출 (service/type 만).
 - ❌ 조회 훅에서 검증 실패 시 throw (원본 반환이 규칙).
 - ❌ `captureSentryError` / `invalidateQueries` 누락.
+- ❌ 401 · 404 같은 비치명 에러까지 Sentry 로 전송 (`isCriticalError` 로 거른다).
+- ❌ 조회 훅마다 `onError` / `throwOnError` 를 따로 지정 (QueryClient 기본값이 처리).
 - ❌ Swagger 의 `nullable` 무시하고 필수로 선언.
 - ❌ 일반 목록인데 `useInfiniteQuery` 사용 (또는 그 반대).
 - ❌ 공용 타입/유틸(`metaSchema`, `PaginationParams`)을 중복 재정의.

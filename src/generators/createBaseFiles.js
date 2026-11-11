@@ -21,6 +21,94 @@ import { defineTokenConfig } from "@byuckchon-frontend/settings/tokens";
 export default defineTokenConfig();
 `;
 
+// ─── 에러 처리 · Sentry ────────────────────────────────────────────────────────
+
+/**
+ * 앱 전체 ErrorBoundary 의 fallback. 치명적 에러(네트워크 · 5xx · 렌더 중 예외)일 때만 보인다.
+ * @byuckchon-frontend/core 의 ErrorBoundary 는 fallback 에 reset 을 넘기지 않아서 새로고침으로 복구한다.
+ */
+function appFallbackUi(framework) {
+  return `${framework === "next" ? "'use client';\n\n" : ""}/**
+ * 앱 전체 에러 화면. 치명적 에러(네트워크 끊김 · 서버 5xx · 렌더 중 예외)일 때만 보입니다.
+ * 디자인에 맞게 고쳐 쓰세요.
+ */
+export default function AppFallbackUI() {
+  return (
+    <div role="alert" className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
+      <p className="text-lg font-semibold">일시적인 문제가 발생했습니다</p>
+      <p className="text-gray-500">네트워크 연결을 확인하거나 잠시 후 다시 시도해주세요.</p>
+      <button
+        type="button"
+        className="rounded-md border px-4 py-2"
+        onClick={() => window.location.reload()}
+      >
+        새로고침
+      </button>
+    </div>
+  );
+}
+`;
+}
+
+/**
+ * .env.example — 키 이름만 둔다. 실제 값은 .env.local(커밋 안 됨) 또는 배포 환경의 GitHub Secrets 에.
+ */
+function envExample(framework) {
+  if (framework === "next") {
+    return `# 키 이름만 둡니다. 값은 .env.local 에 넣으세요. (.env.local 은 커밋되지 않습니다)
+# 배포 환경에서는 GitHub Secrets 로 주입합니다.
+
+# Sentry — 비워두면 Sentry 를 초기화하지 않습니다(에러 전송 꺼짐).
+NEXT_PUBLIC_SENTRY_DSN=
+`;
+  }
+  return `# 키 이름만 둡니다. 값은 .env.local 에 넣으세요. (.env.local 은 커밋되지 않습니다)
+# 배포 환경에서는 GitHub Secrets 로 주입합니다.
+
+# API 서버 주소 (src/api/instance.ts)
+VITE_API_BASE_URL=
+
+# Sentry — 비워두면 Sentry 를 초기화하지 않습니다(에러 전송 꺼짐).
+VITE_SENTRY_DSN=
+`;
+}
+
+/**
+ * React 전용 axios 인스턴스. api-codegen.md 가 `import baseInstance from '../instance'` 로 쓴다.
+ * 응답 실패를 lib/errors.ts 의 클래스로 바꿔 던진다.
+ */
+const REACT_API_INSTANCE_TS = `import axios from 'axios';
+
+import { createHttpError, NetworkError } from '@/lib';
+
+/**
+ * 모든 API 호출이 쓰는 axios 인스턴스.
+ * 응답 실패는 인터셉터가 상태 코드별 에러 클래스(@/lib 의 errors)로 바꿔서 던집니다.
+ */
+const baseInstance = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE_URL,
+});
+
+baseInstance.interceptors.response.use(
+  (response) => response,
+  (error: unknown) => {
+    // react-query 가 요청을 취소한 경우 — 네트워크 에러가 아니므로 그대로 넘긴다.
+    if (axios.isCancel(error) || !axios.isAxiosError(error)) {
+      return Promise.reject(error);
+    }
+
+    if (!error.response) {
+      return Promise.reject(new NetworkError());
+    }
+
+    // TODO: 401 일 때 토큰 갱신 · 로그인 이동이 필요하면 여기서 처리
+    return Promise.reject(createHttpError(error.response.status, error.response.data));
+  },
+);
+
+export default baseInstance;
+`;
+
 // ─── AI 에이전트 가이드 ────────────────────────────────────────────────────────
 
 /**
@@ -169,6 +257,32 @@ src/assets     이미지·아이콘
 }
 
 경로 별칭은 \`@/\` 를 씁니다. (\`@/lib/utils/cn\`)
+
+## 7. 에러 처리
+
+API 에러는 상태 코드별 클래스(\`@/lib\` 의 \`NetworkError\` \`ServerError\` \`AuthenticationError\` …)로 던져집니다.
+${
+  isReact
+    ? "변환은 `src/api/instance.ts` 인터셉터가 합니다."
+    : "fetch wrapper 를 만들 때 `if (!res.ok) throw createHttpError(res.status, body)` 로 변환하세요."
+}
+
+| 에러 | 화면 | Sentry |
+| --- | --- | --- |
+| 네트워크 끊김 · 5xx (\`isCriticalError\`) | ErrorBoundary 가 에러 화면으로 교체 | 보냄 |
+| 401 · 403 · 404 · 그 외 4xx | 화면 유지, \`error.message\` 로 토스트 | 보내지 않음 |
+
+- **조회**: QueryClient 의 \`throwOnError: isCriticalError\` 가 이미 걸려 있습니다. 훅에서 따로 하지 않습니다.
+- **변경**: service 의 \`onError\` 에서 치명적인 것만 보내고, 나머지는 화면에서 토스트로 보여줍니다.
+  \`\`\`ts
+  onError: (e) => { if (isCriticalError(e)) captureSentryError(e, { location: 'useCreateUser', action: 'createUser' }); }
+  \`\`\`
+- **ErrorBoundary 3단계**: App(이미 있음 — \`AppFallbackUI\`) · Page${
+  isReact ? "" : "(\`error.tsx\`)"
+} · 컴포넌트.
+  페이지나 위젯 하나가 깨져도 나머지는 보여야 하면 \`@byuckchon-frontend/core\` 의 \`ErrorBoundary\` 로 감싸고
+  \`onError={captureSentryError}\` 를 넘기세요.
+- **Sentry** 는 \`${isReact ? "VITE_SENTRY_DSN" : "NEXT_PUBLIC_SENTRY_DSN"}\` 이 있을 때만 켜집니다. 값은 \`.env.local\` / 배포는 GitHub Secrets.
 `;
 }
 
@@ -230,11 +344,12 @@ node_modules/
 dist/
 build/
 
-# Env files
+# Env files — 값은 .env.local 에. 키 이름만 적은 .env.example 은 커밋한다.
 .env
 .env.*
 .env.local
 .env.*.local
+!.env.example
 
 # OS
 .DS_Store
@@ -415,9 +530,17 @@ export default defineConfig({
   // src/main.tsx
   await write(
     path.join(rootDir, "src/main.tsx"),
-    `import { createRoot } from 'react-dom/client';
+    `import * as Sentry from '@sentry/react';
+import { createRoot } from 'react-dom/client';
 
 import App from './App.tsx';
+
+// DSN 이 없으면(로컬 · 아직 프로젝트 미발급) Sentry 를 켜지 않는다.
+// NOTE: 환경 구분은 vite --mode 값(MODE)으로 한다. 테스트 서버 에러를 보낼지는 팀 결정 대기.
+const sentryDsn = import.meta.env.VITE_SENTRY_DSN;
+if (sentryDsn) {
+  Sentry.init({ dsn: sentryDsn, environment: import.meta.env.MODE });
+}
 
 createRoot(document.getElementById('root')!).render(<App />);
 `
@@ -425,7 +548,13 @@ createRoot(document.getElementById('root')!).render(<App />);
 
   await write(
     path.join(rootDir, "src/vite-env.d.ts"),
-    `/// <reference types="vite/client" />\n`
+    `/// <reference types="vite/client" />
+
+interface ImportMetaEnv {
+  readonly VITE_API_BASE_URL?: string;
+  readonly VITE_SENTRY_DSN?: string;
+}
+`
   );
 
   await write(
@@ -437,7 +566,11 @@ createRoot(document.getElementById('root')!).render(<App />);
   // src/App.tsx
   await write(
     path.join(rootDir, "src/App.tsx"),
-    `import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+    `import { ErrorBoundary } from '@byuckchon-frontend/core';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+import AppFallbackUI from '@/components/AppFallbackUI';
+import { captureSentryError, isCriticalError } from '@/lib';
 
 import './App.css';
 
@@ -447,6 +580,8 @@ const queryClient = new QueryClient({
       refetchOnWindowFocus: false,
       refetchOnMount: false,
       refetchOnReconnect: false,
+      // 네트워크 · 5xx 만 ErrorBoundary 로 올린다. 나머지는 화면에서 error 로 처리.
+      throwOnError: isCriticalError,
     },
   },
 });
@@ -454,9 +589,11 @@ const queryClient = new QueryClient({
 function App() {
   return (
     <main>
-      <QueryClientProvider client={queryClient}>
-        <div>Hi! Byuckchon Frontend Developer</div>
-      </QueryClientProvider>
+      <ErrorBoundary fallback={<AppFallbackUI />} onError={captureSentryError}>
+        <QueryClientProvider client={queryClient}>
+          <div>Hi! Byuckchon Frontend Developer</div>
+        </QueryClientProvider>
+      </ErrorBoundary>
     </main>
   );
 }
@@ -464,6 +601,10 @@ function App() {
 export default App;
 `
   );
+
+  await write(path.join(rootDir, "src/components/AppFallbackUI.tsx"), appFallbackUi("react"));
+  await write(path.join(rootDir, "src/api/instance.ts"), REACT_API_INSTANCE_TS);
+  await write(path.join(rootDir, ".env.example"), envExample("react"));
 }
 
 // ─── Next.js (App Router) ─────────────────────────────────────────────────────
@@ -555,6 +696,8 @@ export default config;
     path.join(rootDir, "src/app/layout.tsx"),
     `import type { Metadata } from 'next';
 
+import AppProviders from '@/providers/AppProviders';
+
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -572,7 +715,9 @@ export default function RootLayout({
       <head>
         <meta charSet="utf-8" />
       </head>
-      <body>{children}</body>
+      <body>
+        <AppProviders>{children}</AppProviders>
+      </body>
     </html>
   );
 }
@@ -602,11 +747,85 @@ export default function RootLayout({
     path.join(rootDir, "src/app/error.tsx"),
     `'use client';
 
-export default function Error() {
-  return <div>Something went wrong.</div>;
+import { useEffect } from 'react';
+
+import { captureSentryError } from '@/lib';
+
+/**
+ * 페이지 단위 ErrorBoundary. 렌더 중 예외 · throwOnError 로 올라온 치명적 에러를 받는다.
+ * 레이아웃은 그대로 두고 페이지 영역만 바뀐다. (전체 화면은 AppProviders 의 AppFallbackUI)
+ */
+export default function Error({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  useEffect(() => {
+    captureSentryError(error, { location: 'app/error', digest: error.digest });
+  }, [error]);
+
+  return (
+    <div role="alert">
+      <p>문제가 발생했습니다.</p>
+      <button type="button" onClick={reset}>
+        다시 시도
+      </button>
+    </div>
+  );
 }
 `
   );
+
+  await write(
+    path.join(rootDir, "src/providers/AppProviders.tsx"),
+    `'use client';
+
+import { ErrorBoundary } from '@byuckchon-frontend/core';
+import * as Sentry from '@sentry/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useState, type ReactNode } from 'react';
+
+import AppFallbackUI from '@/components/AppFallbackUI';
+import { captureSentryError, isCriticalError } from '@/lib';
+
+// 브라우저에서만, DSN 이 있을 때만 Sentry 를 켠다.
+// @sentry/nextjs 대신 @sentry/react 를 쓴다 — 클라이언트 에러만 모으면 되고 next.config 를 감쌀 필요가 없다.
+// NOTE: 서버 컴포넌트 · Route Handler 에러, 소스맵 업로드가 필요해지면 @sentry/nextjs 로 옮긴다.
+// NOTE: 테스트 서버 에러를 보낼지, 환경을 어떻게 나눌지는 팀 결정 대기. 지금은 NODE_ENV 로 구분.
+const sentryDsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
+if (typeof window !== 'undefined' && sentryDsn && !Sentry.getClient()) {
+  Sentry.init({ dsn: sentryDsn, environment: process.env.NODE_ENV });
+}
+
+function makeQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        refetchOnWindowFocus: false,
+        // 네트워크 · 5xx 만 ErrorBoundary 로 올린다. 나머지는 화면에서 error 로 처리.
+        throwOnError: isCriticalError,
+      },
+    },
+  });
+}
+
+/** 앱 전체 Provider. 바깥쪽 ErrorBoundary 가 마지막 방어선이다. */
+export default function AppProviders({ children }: { children: ReactNode }) {
+  // 요청마다 · 사용자마다 캐시가 섞이지 않도록 컴포넌트 안에서 한 번만 만든다.
+  const [queryClient] = useState(makeQueryClient);
+
+  return (
+    <ErrorBoundary fallback={<AppFallbackUI />} onError={captureSentryError}>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    </ErrorBoundary>
+  );
+}
+`
+  );
+  await write(path.join(rootDir, "src/components/AppFallbackUI.tsx"), appFallbackUi("next"));
+  await write(path.join(rootDir, ".env.example"), envExample("next"));
 
   await write(
     path.join(rootDir, "src/app/not-found.tsx"),
