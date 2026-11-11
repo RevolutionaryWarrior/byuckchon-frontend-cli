@@ -8,6 +8,7 @@ import { initCommand } from '../src/commands/init.js';
 import { addCommand } from '../src/commands/add.js';
 import { adoptCommand } from '../src/commands/adopt.js';
 import { genApiTypesCommand } from '../src/commands/genCmd.js';
+import { deployCommand } from '../src/commands/deploy.js';
 
 // 버전은 package.json 에서 읽는다. 여기에 직접 적으면 changesets 가 올린 버전과
 // 어긋나서, 실제로는 최신인데 옛 버전이라고 표시되는 일이 생긴다.
@@ -41,6 +42,16 @@ program
   .option('-f, --force', '기존 bc.config.json 이 있어도 묻지 않고 덮어쓰기')
   .action(async (opts) => {
     await adoptCommand(opts);
+  });
+
+program
+  .command('deploy')
+  .description('운영 배포 workflow + 배포 성공 시 릴리즈 노트 (프로토타입)')
+  .option('-y, --yes', '묻지 않고 기본값 사용 (날짜 버전 · GitHub Release · Slack 없음)')
+  .option('-f, --force', '기존 deploy.yml 이 있어도 덮어쓰기')
+  .option('--prefix <prefix>', '태그 접두사 (기본: 패키지 이름 + @)')
+  .action(async (opts) => {
+    await deployCommand(opts);
   });
 
 const gen = program
