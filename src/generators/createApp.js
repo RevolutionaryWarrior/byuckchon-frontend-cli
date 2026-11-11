@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import { versions } from '../constants/versions.js';
 import { createFolders } from './createFolders.js';
-import { createBaseFiles } from './createBaseFiles.js';
+import { agentsDoc, createBaseFiles } from './createBaseFiles.js';
 import { createBcConfig } from './createBcConfig.js';
 import { scaffoldApiConventionDoc } from './apiConventionDoc.js';
 
@@ -61,6 +61,8 @@ async function createAppPackageJson(appDir, config, scope) {
         lint: 'eslint .',
         preview: 'vite preview',
         'tokens:build': 'style-dictionary build --config token.config.js',
+        // 앱 폴더 기준으로 bc.config.json · src/api/types.gen.ts 를 쓴다.
+        'gen:api': 'bc gen api-types',
         clean: 'rm -rf dist node_modules .turbo',
       }
     : {
@@ -70,6 +72,7 @@ async function createAppPackageJson(appDir, config, scope) {
         typecheck: 'tsc --noEmit',
         lint: 'eslint .',
         'tokens:build': 'style-dictionary build --config token.config.js',
+        'gen:api': 'bc gen api-types',
         clean: 'rm -rf .next node_modules .turbo',
       };
 
@@ -136,6 +139,12 @@ async function createAppPackageJson(appDir, config, scope) {
  */
 async function applyMonorepoConventions(appDir, config, scope) {
   const isReact = config.framework === 'react';
+
+  // createBaseFiles 의 AGENTS.md 는 npm 기준이라 pnpm 명령으로 다시 쓴다.
+  await write(
+    path.join(appDir, 'AGENTS.md'),
+    agentsDoc(config.framework, { packageManager: 'pnpm' })
+  );
 
   // 루트에서 관리하는 설정들은 앱 레벨에서 제거.
   await rm(path.join(appDir, 'eslint.config.js'));

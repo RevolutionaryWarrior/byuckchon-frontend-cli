@@ -16,6 +16,8 @@ export async function createPackageJson(rootDir, config) {
           dev: 'vite',
           build: 'tsc -b && vite build',
           'tokens:build': 'style-dictionary build --config token.config.js',
+          // bc 는 글로벌 CLI 라 의존성에 넣지 않는다. Swagger 주소는 처음 실행 때 묻는다.
+          'gen:api': 'bc gen api-types',
           // PR Check workflow 가 lint / typecheck / build 를 각각 호출한다.
           typecheck: 'tsc -b',
           lint: 'eslint . --ext ts,tsx',
@@ -29,6 +31,7 @@ export async function createPackageJson(rootDir, config) {
           dev: 'next dev',
           build: 'next build',
           'tokens:build': 'style-dictionary build --config token.config.js',
+          'gen:api': 'bc gen api-types',
           typecheck: 'tsc --noEmit',
           start: 'next start',
           lint: 'eslint .',

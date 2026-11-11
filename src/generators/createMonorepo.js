@@ -139,7 +139,10 @@ packages:
   await write(path.join(root, '.nvmrc'), await readSettingsAsset('project/nvmrc'));
 
   // AI 에이전트 가이드 — 루트에 두면 모든 앱에서 공통으로 읽힌다.
-  await write(path.join(root, 'AGENTS.md'), agentsDoc(config.framework));
+  await write(
+    path.join(root, 'AGENTS.md'),
+    agentsDoc(config.framework, { packageManager: 'pnpm', monorepo: true }),
+  );
   await write(path.join(root, 'CLAUDE.md'), '@AGENTS.md\n');
   // lockfile 은 패키지 매니저가 쓰는 파일이라 포맷 대상에서 뺀다. (install 할 때마다 다시 써짐)
   await write(path.join(root, '.prettierignore'), 'pnpm-lock.yaml\n');

@@ -212,7 +212,9 @@ export const userListSchema = z.array(userItemSchema);
 ### 2-3. `user.type.ts` — 타입
 
 - 응답 타입은 **zod 스키마에서 추론**: `export type X = z.infer<typeof xSchema>;`
-- 입력(요청) 타입은 직접 정의. 인자가 2개 이상인 변경은 객체 입력 타입으로 묶는다.
+- 입력(요청) 타입은 `src/api/types.gen.ts`(`bc gen api-types` 결과)에 있으면 가져다 쓰고, 없을 때만 직접 정의.
+  인자가 2개 이상인 변경은 객체 입력 타입으로 묶는다.
+- 응답 zod 스키마의 필드는 `types.gen.ts` 와 맞춘다. 어긋나면 `types.gen.ts` 가 기준이다.
 
 ```ts
 import { z } from 'zod';

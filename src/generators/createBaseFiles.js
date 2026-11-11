@@ -29,8 +29,11 @@ export default defineTokenConfig();
  *
  * 매 세션 컨텍스트에 실리므로 짧게 유지한다. 상세 API 는 각 패키지 README 로 넘긴다.
  */
-export function agentsDoc(framework) {
+export function agentsDoc(framework, { packageManager = "npm", monorepo = false } = {}) {
   const isReact = framework === "react";
+  // 생성 직후 package.json 에 들어가는 gen:api 를 부르는 명령. (npm 만 run 이 필요)
+  const genApi = packageManager === "npm" ? "npm run gen:api" : `${packageManager} gen:api`;
+  const genApiWhere = monorepo ? "작업할 앱 폴더(`apps/<앱>`)에서 " : "";
 
   return `# 작업 규칙
 
@@ -169,6 +172,31 @@ src/assets     이미지·아이콘
 }
 
 경로 별칭은 \`@/\` 를 씁니다. (\`@/lib/utils/cn\`)
+
+## 7. Figma → 코드
+
+디자인은 **Figma MCP** 로 읽습니다. (처음 한 번 Claude Code 에서 \`/mcp\` 로 Figma 인증)
+사용자가 프레임 링크(Figma 에서 "Copy link to selection")를 주면 그 프레임만 읽어서 구현하세요.
+
+- **토큰 클래스만 씁니다.** \`src/tokens.css\` 에 있는 색·타이포 유틸과 Tailwind 스케일을 쓰고,
+  Figma 값을 그대로 옮긴 임의값은 쓰지 않습니다.
+  - ✅ \`bg-bg-subtle p-4\`
+  - ❌ \`bg-[#F7F8FA] p-[16px]\`
+  - 맞는 토큰이 없으면 임의값으로 우회하지 말고 \`NOTE:\` 주석으로 남기세요.
+- **Auto layout 은 flex · gap 으로** 옮깁니다. absolute 좌표로 배치하지 않습니다.
+- **있는 컴포넌트를 먼저 씁니다.** \`src/components\` 에 비슷한 것이 있으면 재사용하거나 확장하세요.
+
+> 디자이너께: 레이어 이름을 의미 있게(\`Frame 12\` ❌ \`ProductCard\` ✅) 짓고,
+> Auto layout 을 쓰고, 색·간격·타이포는 Variables 로 등록해 주세요. 그래야 위 규칙대로 옮겨집니다.
+
+## 8. API
+
+- API 작업 전에 ${genApiWhere}\`${genApi}\` 로 타입을 최신화하세요.
+  (Swagger 주소는 처음 한 번만 묻고 \`bc.config.json\` 의 \`api.openapi\` 에 저장됩니다)
+- Swagger 에 있는 모양(요청 바디·쿼리·응답)은 \`src/api/types.gen.ts\` 에서 가져옵니다.
+  (\`components["schemas"]["User"]\`) API 모양을 \`interface\` 로 직접 손으로 쓰지 마세요.
+- 응답 zod 스키마는 \`types.gen.ts\` 의 필드와 맞춰 씁니다. 다르면 \`types.gen.ts\` 가 맞습니다.
+- 파일 구성 · 네이밍은 \`src/api/api-codegen.md\` 를 따릅니다.
 `;
 }
 

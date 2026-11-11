@@ -11,7 +11,7 @@ export async function createBcConfig(rootDir, config) {
   const bcConfig = {
     $schema: 'https://byuckchon.dev/bc.schema.json',
     // init · add 는 OpenAPI URL 을 묻지 않으므로 비워 둔다.
-    // 필요하면 파일에 직접 넣거나 bc adopt 로 채운다.
+    // 처음 `bc gen api-types`(npm run gen:api) 실행 때 한 번 묻고 여기에 저장한다.
     api: {
       openapi: null,
       baseUrl: null,

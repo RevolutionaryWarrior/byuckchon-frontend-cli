@@ -144,6 +144,9 @@ bc adopt
 OpenAPI 3.0 / 3.1 스펙에서 TS 타입 파일을 생성합니다.
 
 ```bash
+# 생성한 프로젝트에서는 스크립트로 실행 (모노레포는 앱 폴더에서 pnpm gen:api)
+npm run gen:api
+
 # bc.config.json에 등록한 OpenAPI URL 사용
 bc gen api-types
 
@@ -153,6 +156,20 @@ bc gen api-types --source ./openapi.yaml
 ```
 
 생성 기본 경로는 `src/api/types.gen.ts`이며, `--out` 옵션으로 바꿀 수 있습니다.
+
+`--source`도 `api.openapi`도 없으면 처음 한 번 `? Swagger(OpenAPI) 주소:` 를 묻고,
+읽히는 주소면 `bc.config.json`의 `api.openapi`에 저장합니다. 다음 실행부터는 묻지 않습니다.
+(CI 처럼 터미널이 아니면 묻지 않고 에러로 끝납니다)
+
+### Figma MCP로 화면 구현
+
+bc는 Figma URL을 묻거나 저장하지 않습니다. 각자 Claude Code에서 `/mcp`로 Figma를 한 번 인증한 뒤,
+Figma에서 프레임을 골라 "Copy link to selection"으로 복사한 링크를 붙여 넣고 구현을 요청하면 됩니다.
+
+생성 프로젝트의 `AGENTS.md`(`CLAUDE.md`가 불러옴)에 Figma → 코드 규칙이 들어 있어서,
+Claude가 임의값(`bg-[#F7F8FA] p-[16px]`) 대신 토큰 클래스(`bg-bg-subtle p-4`)를 쓰고
+Auto layout을 flex · gap으로 옮기며 기존 컴포넌트를 재사용합니다. API 작업 전에는
+`gen:api`로 타입을 최신화하고 `src/api/types.gen.ts`의 타입을 쓰도록 안내합니다.
 
 ### 디자인 토큰 빌드
 
