@@ -117,10 +117,15 @@ bc
 | 형태 | 생성 결과 | 적합한 경우 |
 | --- | --- | --- |
 | 단일 프로젝트 | React(Vite) 또는 Next.js(App Router)  | 하나의 웹 서비스를 빠르게 시작할 때 |
+| 단일 프로젝트 · Mobile | React Native + Expo (공식 `create-expo-app` 위에 bc 파일 overlay) | 앱을 시작할 때 (모노레포는 아직 미지원) |
 | 모노레포 | pnpm + Turborepo 루트, `apps/`, `packages/` | 여러 웹 앱과 공용 패키지를 함께 관리할 때 |
 
 생성 프로젝트에는 TypeScript, ESLint, Prettier, Tailwind, `bc.config.json`, API 코드 가이드가
 기본으로 포함됩니다.
+
+Mobile 을 고르면 앱 이름 · 번들 ID · 딥링크 scheme · EAS 연결 여부를 추가로 묻습니다.
+Expo 가 관리하는 `AGENTS.md` 는 그대로 두고 팀 규칙을 아래에 덧붙이며, 스타일은 NativeWind 입니다.
+`eas` 에 로그인돼 있으면 `eas init` 으로 projectId 를 `app.config.ts` 에 넣고, 아니면 끝에 남은 할 일로 안내합니다.
 
 ```bash
 bc init

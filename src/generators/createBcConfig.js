@@ -1,6 +1,8 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
+const ROUTING = { next: 'app-router', expo: 'expo-router' };
+
 /**
  * 새 프로젝트 루트에 `bc.config.json` 을 만든다.
  *
@@ -17,7 +19,7 @@ export async function createBcConfig(rootDir, config) {
       baseUrl: null,
     },
     framework: config.framework,
-    // init 단계에선 사용자가 React/Next 중 골랐고 TS/Tailwind 가 항상 들어가니
+    // init 단계에선 사용자가 React/Next/Expo 중 골랐고 TS/Tailwind 가 항상 들어가니
     // 감지 결과를 미리 채워둔다 (bc adopt 의 detected 와 같은 모양).
     detected: {
       language: 'ts',
@@ -29,7 +31,7 @@ export async function createBcConfig(rootDir, config) {
         vanillaExtract: false,
       },
       packageManager: 'npm',
-      routing: config.framework === 'next' ? 'app-router' : null,
+      routing: ROUTING[config.framework] ?? null,
       componentDirs: ['src/components'],
       designTokensFiles: [],
       hasStorybook: false,

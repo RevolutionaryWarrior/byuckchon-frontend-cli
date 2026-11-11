@@ -1,9 +1,11 @@
 import chalk from "chalk";
 
 import { createProject } from "../generators/createProject.js";
+import { createExpoProject } from "../generators/createExpoProject.js";
 import { createMonorepo } from "../generators/createMonorepo.js";
 import { installMonorepoDeps } from "../generators/install.js";
 import {
+  askExpoQuestions,
   askInitQuestions,
   askProjectType,
   askMonorepoQuestions,
@@ -45,6 +47,11 @@ export async function initCommand() {
 async function runSingleInit() {
   const answers = await askInitQuestions();
 
+  if (answers.framework === "expo") {
+    await runExpoInit(answers);
+    return;
+  }
+
   console.log(
     chalk.dim(
       `\n  ${answers.framework} 프로젝트를 생성하는 중... (${answers.projectName})\n`
@@ -62,6 +69,29 @@ async function runSingleInit() {
   console.log(chalk.white(`    cd ${answers.projectName}`));
   console.log(chalk.white("    npm run dev\n"));
 
+}
+
+async function runExpoInit(answers) {
+  const mobile = await askExpoQuestions(answers.projectName);
+
+  console.log(
+    chalk.dim(
+      `\n  Mobile(Expo) 프로젝트를 생성하는 중... (${answers.projectName} · ${mobile.bundleId})\n`
+    )
+  );
+
+  const { todos } = await createExpoProject({ ...answers, ...mobile });
+
+  console.log(
+    chalk.bold.green(`\n  ✓ ${mobile.appName} 앱이 생성되었습니다!\n`)
+  );
+  console.log(chalk.yellow("  다음 명령어로 시작하세요:\n"));
+  console.log(chalk.white(`    cd ${answers.projectName}`));
+  console.log(chalk.white("    npx expo start\n"));
+
+  console.log(chalk.yellow("  남은 할 일:\n"));
+  for (const todo of todos) console.log(chalk.white(`    □ ${todo}`));
+  console.log();
 }
 
 async function runMonorepoInit() {
