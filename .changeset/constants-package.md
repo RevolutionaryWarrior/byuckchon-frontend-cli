@@ -13,7 +13,8 @@
 - 모노레포 앱(`bc init` · `bc add`) 에는 `cacheConfig.ts` 를 만들지 않고,
   `src/constants/index.ts` 에서 `packages/constants` 를 상대 경로로 가져와 다시 내보냅니다. (`import { cacheConfig } from '@/constants'`)
 - `bc add` 를 `packages/constants` 가 없는 기존 모노레포에서 실행하면 폴더를 만들어 줍니다.
-- 모노레포에 Next 앱이 하나라도 있으면 `cacheConfig.ts` 에 Next fetch 용 `nextCacheConfig` 를 함께 넣습니다.
+- Next 가 있으면 `cacheConfig.ts` 에 Next fetch 용 `nextCacheConfig` 를 함께 넣습니다.
   - `fetch(url, { ...nextCacheConfig.longLived })` 처럼 펼쳐 씁니다. (`realtime` 은 `cache: 'no-store'`, 나머지는 `next.revalidate`)
-  - `bc init` 을 Next 로 만들거나, `bc add` 로 Next 앱을 추가하면(또는 이미 Next 앱이 있으면) 적용됩니다.
+  - 단일 Next 프로젝트는 처음부터 들어갑니다.
+  - 모노레포는 `bc init` 을 Next 로 만들거나, `bc add` 로 Next 앱을 추가하면(또는 이미 Next 앱이 있으면) 적용됩니다.
   - 기존 `cacheConfig.ts` 끝에 덧붙이기만 하므로 `cacheConfig` 를 수정해 뒀어도 그대로 유지됩니다.

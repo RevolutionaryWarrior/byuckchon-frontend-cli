@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { CACHE_CONFIG_TS } from './createFolders.js';
+import { CACHE_CONFIG_TS, withNextCacheConfig } from './createFolders.js';
 
 /**
  * 모노레포 공용 상수 폴더 packages/constants.
@@ -19,33 +19,6 @@ import { CACHE_CONFIG_TS } from './createFolders.js';
 
 /** apps/<app>/src/constants/index.ts 에서 packages/constants 까지의 상대 경로 */
 export const CONSTANTS_IMPORT_FROM_APP = '../../../../packages/constants';
-
-/**
- * Next fetch 캐시 정책. cacheConfig 와 같은 tier 이름 · 같은 시간이다.
- * fetch 옵션에 그대로 펼쳐 쓰도록 RequestInit 모양으로 둔다.
- */
-const NEXT_CACHE_CONFIG_TS = `/**
- * Next fetch 캐시 정책. fetch 옵션에 \`...nextCacheConfig.<tier>\` 로 펼쳐 씁니다.
- *
- *   fetch(url, { ...nextCacheConfig.longLived });
- *
- * - tier 이름과 시간은 cacheConfig 의 staleTime 과 같습니다. revalidate 단위는 초입니다.
- * - 페이지 · 레이아웃의 \`export const revalidate\` 에는 쓸 수 없습니다.
- *   Next 가 빌드 때 그 값을 직접 읽어서, 다른 파일에서 가져온 값이면 빌드가 실패합니다. 숫자를 직접 쓰세요.
- */
-export const nextCacheConfig = Object.freeze({
-  realtime: Object.freeze({ cache: 'no-store' as const }),
-  shortLived: Object.freeze({ next: { revalidate: 60 } }),
-  mediumLived: Object.freeze({ next: { revalidate: 60 * 3 } }),
-  longLived: Object.freeze({ next: { revalidate: 60 * 30 } }),
-  immutable: Object.freeze({ next: { revalidate: false as const } }),
-});
-`;
-
-/** cacheConfig.ts 내용 끝에 nextCacheConfig 를 붙인다. */
-function withNextCacheConfig(source) {
-  return `${source.trimEnd()}\n\n${NEXT_CACHE_CONFIG_TS}`;
-}
 
 async function exists(p) {
   try {

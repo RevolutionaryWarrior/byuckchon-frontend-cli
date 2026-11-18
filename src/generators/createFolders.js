@@ -44,6 +44,7 @@ const NEXT_FOLDERS = [
 /**
  * React Query 캐시 정책. src/constants/cacheConfig.ts 로 만들고,
  * api-codegen.md 가 `import { cacheConfig } from '@/constants'` 로 쓴다.
+ * Next 프로젝트면 같은 파일에 nextCacheConfig 도 넣는다. (withNextCacheConfig)
  * React · Next 공통. (Next 서버 컴포넌트에서도 import 가능 — React 의존성이 없는 순수 객체)
  * 모노레포에서는 앱이 아니라 packages/constants 에 둔다. → createConstants.js
  */
@@ -81,6 +82,33 @@ export const cacheConfig = Object.freeze({
   }),
 });
 `;
+
+/**
+ * Next fetch 캐시 정책. cacheConfig 와 같은 tier 이름 · 같은 시간이다.
+ * fetch 옵션에 그대로 펼쳐 쓰도록 RequestInit 모양으로 둔다.
+ */
+const NEXT_CACHE_CONFIG_TS = `/**
+ * Next fetch 캐시 정책. fetch 옵션에 \`...nextCacheConfig.<tier>\` 로 펼쳐 씁니다.
+ *
+ *   fetch(url, { ...nextCacheConfig.longLived });
+ *
+ * - tier 이름과 시간은 cacheConfig 의 staleTime 과 같습니다. revalidate 단위는 초입니다.
+ * - 페이지 · 레이아웃의 \`export const revalidate\` 에는 쓸 수 없습니다.
+ *   Next 가 빌드 때 그 값을 직접 읽어서, 다른 파일에서 가져온 값이면 빌드가 실패합니다. 숫자를 직접 쓰세요.
+ */
+export const nextCacheConfig = Object.freeze({
+  realtime: Object.freeze({ cache: 'no-store' as const }),
+  shortLived: Object.freeze({ next: { revalidate: 60 } }),
+  mediumLived: Object.freeze({ next: { revalidate: 60 * 3 } }),
+  longLived: Object.freeze({ next: { revalidate: 60 * 30 } }),
+  immutable: Object.freeze({ next: { revalidate: false as const } }),
+});
+`;
+
+/** cacheConfig.ts 내용 끝에 nextCacheConfig 를 붙인다. (단일 Next · 모노레포 공통) */
+export function withNextCacheConfig(source) {
+  return `${source.trimEnd()}\n\n${NEXT_CACHE_CONFIG_TS}`;
+}
 
 async function writeFile(filePath, content) {
   await fs.writeFile(filePath, content, 'utf-8');
@@ -131,7 +159,10 @@ export * from '${constantsFrom}';
 `,
     );
   } else {
-    await writeFile(path.join(rootDir, 'src/constants/cacheConfig.ts'), CACHE_CONFIG_TS);
+    await writeFile(
+      path.join(rootDir, 'src/constants/cacheConfig.ts'),
+      config.framework === 'next' ? withNextCacheConfig(CACHE_CONFIG_TS) : CACHE_CONFIG_TS,
+    );
     await writeFile(
       path.join(rootDir, 'src/constants/index.ts'),
       "export * from './cacheConfig';\n",
