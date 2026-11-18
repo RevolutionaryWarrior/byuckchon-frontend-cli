@@ -5,6 +5,7 @@ import chalk from 'chalk';
 
 import { askAddQuestions } from '../prompts/initPrompts.js';
 import { createApp } from '../generators/createApp.js';
+import { ensureConstantsPackage } from '../generators/createConstantsPackage.js';
 import { installMonorepoDeps } from '../generators/install.js';
 import { prepareVersionMatrix } from '../utils/latestSettings.js';
 import {
@@ -56,6 +57,21 @@ export async function addCommand() {
   console.log(
     chalk.dim(`  ${answers.framework} 앱을 apps/${answers.appName} 에 생성하는 중...\n`),
   );
+
+  // 이 CLI 의 예전 버전으로 만든 모노레포에는 packages/constants 가 없을 수 있다.
+  const constants = await ensureConstantsPackage(root, scope);
+  if (constants.created) {
+    console.log(
+      chalk.dim(`  packages/constants (${constants.name}) 를 만들었습니다. (cacheConfig)\n`),
+    );
+  } else if (!constants.hasCacheConfig) {
+    console.log(
+      chalk.yellow(
+        `  ⚠ packages/constants 에 src/cacheConfig.ts 가 없습니다. 새 앱의 src/lib/index.ts 가\n` +
+          `    ${constants.name} 에서 cacheConfig 를 가져오므로, 그 패키지에서 export 해주세요.\n`,
+      ),
+    );
+  }
 
   await createApp({ appDir, config, scope });
   await addRootDevScript(root, answers.appName, appPkgName);
