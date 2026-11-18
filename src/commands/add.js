@@ -5,12 +5,14 @@ import chalk from 'chalk';
 
 import { askAddQuestions } from '../prompts/initPrompts.js';
 import { createApp } from '../generators/createApp.js';
+import { ensureConstants } from '../generators/createConstants.js';
 import { installMonorepoDeps } from '../generators/install.js';
 import { prepareVersionMatrix } from '../utils/latestSettings.js';
 import {
   detectMonorepoRoot,
   detectScope,
   appExists,
+  hasNextApp,
 } from '../context/monorepo.js';
 
 /**
@@ -56,6 +58,35 @@ export async function addCommand() {
   console.log(
     chalk.dim(`  ${answers.framework} 앱을 apps/${answers.appName} 에 생성하는 중...\n`),
   );
+
+  // 이 CLI 의 예전 버전으로 만든 모노레포에는 packages/constants 가 없을 수 있다.
+  // Next 앱이 하나라도 생기면 Next fetch 용 nextCacheConfig 도 넣는다.
+  const constants = await ensureConstants(root, {
+    next: answers.framework === 'next' || (await hasNextApp(root)),
+  });
+  if (constants.created) {
+    console.log(chalk.dim('  packages/constants 를 만들었습니다. (cacheConfig)\n'));
+  } else if (!constants.hasCacheConfig) {
+    console.log(
+      chalk.yellow(
+        '  ⚠ packages/constants 에 cacheConfig.ts 가 없습니다. 새 앱의 src/constants/index.ts 가\n' +
+          '    packages/constants 에서 cacheConfig 를 가져오므로, packages/constants/index.ts 에서 export 해주세요.\n',
+      ),
+    );
+  }
+  if (constants.nextCache === 'added') {
+    console.log(
+      chalk.dim('  Next 앱이 있어 packages/constants/cacheConfig.ts 에 nextCacheConfig 를 추가했습니다.\n'),
+    );
+  }
+  if (!constants.nextCacheExported) {
+    console.log(
+      chalk.yellow(
+        '  ⚠ packages/constants/index.ts 가 nextCacheConfig 를 내보내지 않습니다.\n' +
+          "    export * from './cacheConfig'; 로 바꾸거나 nextCacheConfig 를 export 해주세요.\n",
+      ),
+    );
+  }
 
   await createApp({ appDir, config, scope });
   await addRootDevScript(root, answers.appName, appPkgName);

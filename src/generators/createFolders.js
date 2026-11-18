@@ -4,13 +4,14 @@ import path from 'path';
 /**
  * React 폴더 구조
  * lib → store → api → hooks → context → components → layouts → pages
- * assets는 모든 레이어에서 참조 가능
+ * assets · constants 는 모든 레이어에서 참조 가능
  */
 const REACT_FOLDERS = [
   'public',
   'src/assets',
   'src/assets/icons',
   'src/assets/images',
+  'src/constants',
   'src/lib',
   'src/lib/utils',
   'src/store',
@@ -33,7 +34,7 @@ const NEXT_FOLDERS = [
   'src/assets/common',
   'src/assets/pages',
   'src/components',
-  'src/constant',
+  'src/constants',
   'src/hooks',
   'src/lib',
   'src/lib/utils',
@@ -41,10 +42,13 @@ const NEXT_FOLDERS = [
 ];
 
 /**
- * React Query 캐시 정책. api-codegen.md 가 `import { cacheConfig } from '@/lib'` 로 쓴다.
+ * React Query 캐시 정책. src/constants/cacheConfig.ts 로 만들고,
+ * api-codegen.md 가 `import { cacheConfig } from '@/constants'` 로 쓴다.
+ * Next 프로젝트면 같은 파일에 nextCacheConfig 도 넣는다. (withNextCacheConfig)
  * React · Next 공통. (Next 서버 컴포넌트에서도 import 가능 — React 의존성이 없는 순수 객체)
+ * 모노레포에서는 앱이 아니라 packages/constants 에 둔다. → createConstants.js
  */
-const CACHE_CONFIG_TS = `/**
+export const CACHE_CONFIG_TS = `/**
  * React Query 캐시 정책. 조회 훅에서 \`...cacheConfig.<tier>\` 로 펼쳐 씁니다.
  *
  *   useQuery({ queryKey, queryFn, ...cacheConfig.longLived });
@@ -79,11 +83,46 @@ export const cacheConfig = Object.freeze({
 });
 `;
 
+/**
+ * Next fetch 캐시 정책. cacheConfig 와 같은 tier 이름 · 같은 시간이다.
+ * fetch 옵션에 그대로 펼쳐 쓰도록 RequestInit 모양으로 둔다.
+ */
+const NEXT_CACHE_CONFIG_TS = `/**
+ * Next fetch 캐시 정책. fetch 옵션에 \`...nextCacheConfig.<tier>\` 로 펼쳐 씁니다.
+ *
+ *   fetch(url, { ...nextCacheConfig.longLived });
+ *
+ * - tier 이름과 시간은 cacheConfig 의 staleTime 과 같습니다. revalidate 단위는 초입니다.
+ * - 페이지 · 레이아웃의 \`export const revalidate\` 에는 쓸 수 없습니다.
+ *   Next 가 빌드 때 그 값을 직접 읽어서, 다른 파일에서 가져온 값이면 빌드가 실패합니다. 숫자를 직접 쓰세요.
+ */
+export const nextCacheConfig = Object.freeze({
+  realtime: Object.freeze({ cache: 'no-store' as const }),
+  shortLived: Object.freeze({ next: { revalidate: 60 } }),
+  mediumLived: Object.freeze({ next: { revalidate: 60 * 3 } }),
+  longLived: Object.freeze({ next: { revalidate: 60 * 30 } }),
+  immutable: Object.freeze({ next: { revalidate: false as const } }),
+});
+`;
+
+/** cacheConfig.ts 내용 끝에 nextCacheConfig 를 붙인다. (단일 Next · 모노레포 공통) */
+export function withNextCacheConfig(source) {
+  return `${source.trimEnd()}\n\n${NEXT_CACHE_CONFIG_TS}`;
+}
+
 async function writeFile(filePath, content) {
   await fs.writeFile(filePath, content, 'utf-8');
 }
 
-export async function createFolders(rootDir, config) {
+/**
+ * @param {string} rootDir
+ * @param {object} config
+ * @param {object} [options]
+ * @param {string} [options.constantsFrom] src/constants/index.ts 기준으로 공용 상수를 가져올 경로.
+ *   주면 앱에 cacheConfig.ts 를 만들지 않고, `@/constants` 에서 그 경로의 export 를 모두 다시 내보낸다.
+ *   (모노레포: 루트의 packages/constants — cacheConfig, Next 앱이 있으면 nextCacheConfig)
+ */
+export async function createFolders(rootDir, config, { constantsFrom } = {}) {
   const folders =
     config.framework === 'react' ? REACT_FOLDERS : NEXT_FOLDERS;
 
@@ -108,16 +147,27 @@ export { cn } from '@byuckchon-frontend/utils';
     path.join(rootDir, 'src/lib/utils/index.ts'),
     "export { cn } from './cn';\n",
   );
-  await fs.mkdir(path.join(rootDir, 'src/lib/query'), { recursive: true });
-  await writeFile(path.join(rootDir, 'src/lib/query/cacheConfig.ts'), CACHE_CONFIG_TS);
-  await writeFile(
-    path.join(rootDir, 'src/lib/query/index.ts'),
-    "export { cacheConfig } from './cacheConfig';\n",
-  );
-  await writeFile(
-    path.join(rootDir, 'src/lib/index.ts'),
-    "export * from './query';\nexport * from './utils';\n",
-  );
+  await writeFile(path.join(rootDir, 'src/lib/index.ts'), "export * from './utils';\n");
+
+  if (constantsFrom) {
+    // 캐시 정책은 앱끼리 같아야 하므로 공용 폴더가 갖고, 앱은 `@/constants` 로 다시 내보내기만 한다.
+    await writeFile(
+      path.join(rootDir, 'src/constants/index.ts'),
+      `// cacheConfig · nextCacheConfig 는 모노레포 루트의 packages/constants 가 관리합니다.
+// 값을 바꾸면 모든 앱에 반영됩니다. 이 앱에서만 쓰는 상수는 이 폴더에 두고 아래에 export 하세요.
+export * from '${constantsFrom}';
+`,
+    );
+  } else {
+    await writeFile(
+      path.join(rootDir, 'src/constants/cacheConfig.ts'),
+      config.framework === 'next' ? withNextCacheConfig(CACHE_CONFIG_TS) : CACHE_CONFIG_TS,
+    );
+    await writeFile(
+      path.join(rootDir, 'src/constants/index.ts'),
+      "export * from './cacheConfig';\n",
+    );
+  }
   await writeFile(path.join(rootDir, 'src/hooks/index.ts'), '// 커스텀 훅\n');
   await writeFile(path.join(rootDir, 'src/components/index.ts'), '// 재사용 가능한 UI 컴포넌트\n');
 
@@ -129,7 +179,6 @@ export { cn } from '@byuckchon-frontend/utils';
     await writeFile(path.join(rootDir, 'src/pages/index.tsx'), '// 페이지 컴포넌트\n');
   } else {
     await writeFile(path.join(rootDir, 'src/api/index.ts'), '// API 호출\n');
-    await writeFile(path.join(rootDir, 'src/constant/index.ts'), '// 상수 정의\n');
     await writeFile(path.join(rootDir, 'src/providers/index.tsx'), '// 전역 Provider\n');
   }
 }

@@ -5,6 +5,7 @@ import { versions } from '../constants/versions.js';
 import { readSettingsAsset } from '../utils/settingsAssets.js';
 import { agentsDoc } from './createBaseFiles.js';
 import { createApp } from './createApp.js';
+import { ensureConstants } from './createConstants.js';
 import { scaffoldReviewAutomation } from './scaffoldReviewAutomation.js';
 
 /**
@@ -21,6 +22,7 @@ import { scaffoldReviewAutomation } from './scaffoldReviewAutomation.js';
  *     README.md
  *     packages/config-typescript/*
  *     packages/config-eslint/*
+ *     packages/constants/      (앱 공용 상수 — index.ts · cacheConfig.ts 만)
  *     apps/<initial-app>/      (사용자가 고른 React 또는 Next 하나)
  *
  * @param {object} config { projectName, framework, appName, scope }
@@ -36,6 +38,8 @@ export async function createMonorepo(config) {
   await writeRootFiles(root, config, scope);
   await writeConfigTypescript(root, scope);
   await writeConfigEslint(root, scope);
+  // 최초 앱이 Next 면 Next fetch 용 nextCacheConfig 도 넣는다.
+  await ensureConstants(root, { next: config.framework === 'next' });
   await scaffoldReviewAutomation({ projectRoot: root, projectType: 'monorepo' });
 
   // 최초 앱 하나만 생성. 이후 추가는 `bc add`.
@@ -230,6 +234,7 @@ apps/           # 배포 대상 (React / Next 앱)
 packages/       # 내부 공유 패키지 (@${scope}/*)
   config-eslint/
   config-typescript/
+  constants/    # 앱 공용 상수 (cacheConfig 등). 패키지가 아닌 TS 폴더 — 앱은 @/constants 로 다시 내보냄
 \`\`\`
 
 ## 시작하기
