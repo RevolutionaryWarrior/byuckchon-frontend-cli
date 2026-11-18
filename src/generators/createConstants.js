@@ -10,15 +10,15 @@ import { CACHE_CONFIG_TS } from './createFolders.js';
  * Next 앱이 하나라도 있으면 cacheConfig.ts 에 Next fetch 용 nextCacheConfig 도 넣는다.
  *
  * 워크스페이스 패키지가 아니라 TS 파일만 두는 폴더다. (package.json · tsconfig 없음)
- * 앱은 src/lib/index.ts 에서 상대 경로로 가져와 `@/lib` 로 다시 내보낸다. (createApp.js)
+ * 앱은 src/constants/index.ts 에서 상대 경로로 가져와 `@/constants` 로 다시 내보낸다. (createApp.js)
  *
  *   packages/constants/
  *     index.ts
  *     cacheConfig.ts
  */
 
-/** apps/<app>/src/lib/index.ts 에서 packages/constants 까지의 상대 경로 */
-export const CONSTANTS_IMPORT_FROM_APP_LIB = '../../../../packages/constants';
+/** apps/<app>/src/constants/index.ts 에서 packages/constants 까지의 상대 경로 */
+export const CONSTANTS_IMPORT_FROM_APP = '../../../../packages/constants';
 
 /**
  * Next fetch 캐시 정책. cacheConfig 와 같은 tier 이름 · 같은 시간이다.

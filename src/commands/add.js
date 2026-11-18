@@ -69,7 +69,7 @@ export async function addCommand() {
   } else if (!constants.hasCacheConfig) {
     console.log(
       chalk.yellow(
-        '  ⚠ packages/constants 에 cacheConfig.ts 가 없습니다. 새 앱의 src/lib/index.ts 가\n' +
+        '  ⚠ packages/constants 에 cacheConfig.ts 가 없습니다. 새 앱의 src/constants/index.ts 가\n' +
           '    packages/constants 에서 cacheConfig 를 가져오므로, packages/constants/index.ts 에서 export 해주세요.\n',
       ),
     );

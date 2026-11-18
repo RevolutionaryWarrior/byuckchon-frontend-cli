@@ -229,7 +229,7 @@ apps/           # 배포 대상 (React / Next 앱)
 packages/       # 내부 공유 패키지 (@${scope}/*)
   config-eslint/
   config-typescript/
-  constants/    # 앱 공용 상수 (cacheConfig 등). 패키지가 아닌 TS 폴더 — 앱은 @/lib 에서 다시 내보냄
+  constants/    # 앱 공용 상수 (cacheConfig 등). 패키지가 아닌 TS 폴더 — 앱은 @/constants 로 다시 내보냄
 \`\`\`
 
 ## 시작하기

@@ -157,12 +157,12 @@ src/lib        공용 로직·유틸      src/store      전역 상태
 src/api        API 호출           src/hooks      커스텀 훅
 src/context    Context            src/components 컴포넌트
 src/layouts    레이아웃           src/pages      페이지
-src/assets     이미지·아이콘
+src/constants  상수 (cacheConfig)  src/assets     이미지·아이콘
 \`\`\``
     : `\`\`\`
 src/app        App Router         src/components 컴포넌트
 src/api        API 호출           src/hooks      커스텀 훅
-src/lib        공용 로직·유틸      src/constant   상수
+src/lib        공용 로직·유틸      src/constants  상수 (cacheConfig)
 src/providers  Provider
 src/assets     이미지·아이콘
 \`\`\``

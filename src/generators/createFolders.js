@@ -4,13 +4,14 @@ import path from 'path';
 /**
  * React 폴더 구조
  * lib → store → api → hooks → context → components → layouts → pages
- * assets는 모든 레이어에서 참조 가능
+ * assets · constants 는 모든 레이어에서 참조 가능
  */
 const REACT_FOLDERS = [
   'public',
   'src/assets',
   'src/assets/icons',
   'src/assets/images',
+  'src/constants',
   'src/lib',
   'src/lib/utils',
   'src/store',
@@ -33,7 +34,7 @@ const NEXT_FOLDERS = [
   'src/assets/common',
   'src/assets/pages',
   'src/components',
-  'src/constant',
+  'src/constants',
   'src/hooks',
   'src/lib',
   'src/lib/utils',
@@ -41,7 +42,8 @@ const NEXT_FOLDERS = [
 ];
 
 /**
- * React Query 캐시 정책. api-codegen.md 가 `import { cacheConfig } from '@/lib'` 로 쓴다.
+ * React Query 캐시 정책. src/constants/cacheConfig.ts 로 만들고,
+ * api-codegen.md 가 `import { cacheConfig } from '@/constants'` 로 쓴다.
  * React · Next 공통. (Next 서버 컴포넌트에서도 import 가능 — React 의존성이 없는 순수 객체)
  * 모노레포에서는 앱이 아니라 packages/constants 에 둔다. → createConstants.js
  */
@@ -88,11 +90,11 @@ async function writeFile(filePath, content) {
  * @param {string} rootDir
  * @param {object} config
  * @param {object} [options]
- * @param {string} [options.cacheConfigFrom] src/lib/index.ts 기준으로 공용 상수를 가져올 경로.
- *   주면 앱에 src/lib/query 를 만들지 않고, `@/lib` 에서 그 경로의 export 를 모두 다시 내보낸다.
+ * @param {string} [options.constantsFrom] src/constants/index.ts 기준으로 공용 상수를 가져올 경로.
+ *   주면 앱에 cacheConfig.ts 를 만들지 않고, `@/constants` 에서 그 경로의 export 를 모두 다시 내보낸다.
  *   (모노레포: 루트의 packages/constants — cacheConfig, Next 앱이 있으면 nextCacheConfig)
  */
-export async function createFolders(rootDir, config, { cacheConfigFrom } = {}) {
+export async function createFolders(rootDir, config, { constantsFrom } = {}) {
   const folders =
     config.framework === 'react' ? REACT_FOLDERS : NEXT_FOLDERS;
 
@@ -117,26 +119,22 @@ export { cn } from '@byuckchon-frontend/utils';
     path.join(rootDir, 'src/lib/utils/index.ts'),
     "export { cn } from './cn';\n",
   );
-  if (cacheConfigFrom) {
-    // 캐시 정책은 앱끼리 같아야 하므로 공용 폴더가 갖고, 앱은 `@/lib` 로 다시 내보내기만 한다.
+  await writeFile(path.join(rootDir, 'src/lib/index.ts'), "export * from './utils';\n");
+
+  if (constantsFrom) {
+    // 캐시 정책은 앱끼리 같아야 하므로 공용 폴더가 갖고, 앱은 `@/constants` 로 다시 내보내기만 한다.
     await writeFile(
-      path.join(rootDir, 'src/lib/index.ts'),
+      path.join(rootDir, 'src/constants/index.ts'),
       `// cacheConfig · nextCacheConfig 는 모노레포 루트의 packages/constants 가 관리합니다.
-// 값을 바꾸면 모든 앱에 반영됩니다.
-export * from '${cacheConfigFrom}';
-export * from './utils';
+// 값을 바꾸면 모든 앱에 반영됩니다. 이 앱에서만 쓰는 상수는 이 폴더에 두고 아래에 export 하세요.
+export * from '${constantsFrom}';
 `,
     );
   } else {
-    await fs.mkdir(path.join(rootDir, 'src/lib/query'), { recursive: true });
-    await writeFile(path.join(rootDir, 'src/lib/query/cacheConfig.ts'), CACHE_CONFIG_TS);
+    await writeFile(path.join(rootDir, 'src/constants/cacheConfig.ts'), CACHE_CONFIG_TS);
     await writeFile(
-      path.join(rootDir, 'src/lib/query/index.ts'),
-      "export { cacheConfig } from './cacheConfig';\n",
-    );
-    await writeFile(
-      path.join(rootDir, 'src/lib/index.ts'),
-      "export * from './query';\nexport * from './utils';\n",
+      path.join(rootDir, 'src/constants/index.ts'),
+      "export * from './cacheConfig';\n",
     );
   }
   await writeFile(path.join(rootDir, 'src/hooks/index.ts'), '// 커스텀 훅\n');
@@ -150,7 +148,6 @@ export * from './utils';
     await writeFile(path.join(rootDir, 'src/pages/index.tsx'), '// 페이지 컴포넌트\n');
   } else {
     await writeFile(path.join(rootDir, 'src/api/index.ts'), '// API 호출\n');
-    await writeFile(path.join(rootDir, 'src/constant/index.ts'), '// 상수 정의\n');
     await writeFile(path.join(rootDir, 'src/providers/index.tsx'), '// 전역 Provider\n');
   }
 }

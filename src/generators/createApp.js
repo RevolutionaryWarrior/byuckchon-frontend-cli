@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 import { versions } from '../constants/versions.js';
-import { CONSTANTS_IMPORT_FROM_APP_LIB } from './createConstants.js';
+import { CONSTANTS_IMPORT_FROM_APP } from './createConstants.js';
 import { createFolders } from './createFolders.js';
 import { createBaseFiles } from './createBaseFiles.js';
 import { createBcConfig } from './createBcConfig.js';
@@ -16,7 +16,7 @@ import { scaffoldApiConventionDoc } from './apiConventionDoc.js';
  *  - 공유 프리셋(@<scope>/config-eslint, @<scope>/config-typescript)을 workspace 로 참조
  *  - eslint / tsconfig 를 모노레포 프리셋을 extends 하도록 재작성
  *  - .gitignore / .vscode / .prettierrc 는 루트가 담당하므로 앱에서는 제거
- *  - cacheConfig 는 앱에 두지 않고 루트의 packages/constants 를 상대 경로로 가져온다
+ *  - cacheConfig 는 앱에 두지 않고 src/constants 가 루트의 packages/constants 를 상대 경로로 가져온다
  *    (폴더 생성은 호출자가 ensureConstants 로 먼저 해둔다)
  *  - 의존성 설치(pnpm install)는 호출자가 루트에서 일괄 수행
  *
@@ -29,7 +29,7 @@ export async function createApp({ appDir, config, scope }) {
   await fs.mkdir(appDir, { recursive: true });
 
   await createFolders(appDir, config, {
-    cacheConfigFrom: CONSTANTS_IMPORT_FROM_APP_LIB,
+    constantsFrom: CONSTANTS_IMPORT_FROM_APP,
   });
   await createBaseFiles(appDir, config);
   await scaffoldApiConventionDoc({

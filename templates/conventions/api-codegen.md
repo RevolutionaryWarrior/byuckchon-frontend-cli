@@ -231,7 +231,8 @@ export type UpdateUser = {
 공통 import:
 
 ```ts
-import { cacheConfig, captureSentryError, queryKey } from '@/lib';
+import { cacheConfig } from '@/constants';
+import { captureSentryError, queryKey } from '@/lib';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 ```
 
