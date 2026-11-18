@@ -23,6 +23,25 @@
 
 ---
 
+## 📥 Swagger 가져오기
+
+1. 사용자가 Swagger JSON · URL · 엔드포인트를 주면 그것을 쓴다.
+2. 없으면 가장 가까운 `bc.config.json` 의 `api.openapi`(URL 또는 파일 경로)를 쓴다.
+3. 둘 다 없거나, 인증이 필요해 받을 수 없으면 추측하지 말고 사용자에게 Swagger 를 요청한다.
+
+- 스펙 전체를 한 번에 읽지 않는다. 파일로 받아 필요한 경로와, 그 경로가 `$ref` 로 참조하는
+  `components.schemas` 만 추려 본다.
+
+  ```bash
+  curl -s "<api.openapi>" -o /tmp/openapi.json
+  jq '.paths["/api/user"]' /tmp/openapi.json
+  jq '.components.schemas.UserItem' /tmp/openapi.json
+  ```
+
+- 별도 타입 생성 도구(openapi-typescript 등)는 쓰지 않는다. 타입은 zod 스키마에서 `z.infer` 로 추론한다. (§2-3)
+
+---
+
 ## 0. 위치 & 폴더 구조
 
 API 루트는 React · Next.js 모두 `src/api`다.

@@ -7,7 +7,6 @@ import chalk from 'chalk';
 import { initCommand } from '../src/commands/init.js';
 import { addCommand } from '../src/commands/add.js';
 import { adoptCommand } from '../src/commands/adopt.js';
-import { genApiTypesCommand } from '../src/commands/genCmd.js';
 
 // 버전은 package.json 에서 읽는다. 여기에 직접 적으면 changesets 가 올린 버전과
 // 어긋나서, 실제로는 최신인데 옛 버전이라고 표시되는 일이 생긴다.
@@ -18,7 +17,7 @@ const program = new Command();
 
 program
   .name('bc')
-  .description('Byuckchon Frontend Workbench — 프로젝트 스타터 + OpenAPI 타입 생성')
+  .description('Byuckchon Frontend Workbench — 프로젝트 스타터')
   .version(version);
 
 program
@@ -41,19 +40,6 @@ program
   .option('-f, --force', '기존 bc.config.json 이 있어도 묻지 않고 덮어쓰기')
   .action(async (opts) => {
     await adoptCommand(opts);
-  });
-
-const gen = program
-  .command('gen')
-  .description('자동 코드 생성 (OpenAPI → TS 타입 등)');
-
-gen
-  .command('api-types')
-  .description('bc.config.json 의 api.openapi 또는 --source 에서 TS 타입 생성')
-  .option('--source <urlOrPath>', 'OpenAPI URL 또는 로컬 파일 경로')
-  .option('--out <path>', '출력 파일 경로 (기본 src/api/types.gen.ts)')
-  .action(async (opts) => {
-    await genApiTypesCommand(opts);
   });
 
 program.exitOverride((err) => {

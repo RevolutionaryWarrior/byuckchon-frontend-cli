@@ -4,7 +4,7 @@ import path from 'node:path';
 /**
  * 새 프로젝트 루트에 `bc.config.json` 을 만든다.
  *
- * - bc gen api-types 가 이 파일의 api.openapi 를 읽는다.
+ * - AI 가 API 코드를 만들 때 이 파일의 api.openapi 를 Swagger 출처로 읽는다. (api-codegen.md)
  * - API 키 같은 비밀값은 절대 여기 두지 말 것.
  */
 export async function createBcConfig(rootDir, config) {

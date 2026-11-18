@@ -230,7 +230,8 @@ export async function adoptCommand(opts = {}) {
   if (next.api.openapi) {
     console.log();
     console.log(chalk.dim('  다음:'));
-    console.log(chalk.dim('    bc gen api-types               # OpenAPI → TS 타입 생성'));
+    console.log(chalk.dim('    AI 에게 "user API 만들어줘" 처럼 요청하면 api.openapi 의 Swagger 를 보고'));
+    console.log(chalk.dim('    api-codegen.md 컨벤션대로 API 코드를 만듭니다.'));
   }
   console.log();
 }

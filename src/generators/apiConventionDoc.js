@@ -9,7 +9,6 @@ const TEMPLATE_PATH = path.resolve(
 
 /**
  * API 루트 폴더. React · Next 모두 src/api 로 통일한다.
- * (bc gen api-types 의 기본 출력 src/api/types.gen.ts 와 같은 위치)
  */
 export function apiRootForFramework() {
   return 'src/api';
