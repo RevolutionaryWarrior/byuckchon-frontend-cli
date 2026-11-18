@@ -5,7 +5,7 @@ import chalk from 'chalk';
 
 import { askAddQuestions } from '../prompts/initPrompts.js';
 import { createApp } from '../generators/createApp.js';
-import { ensureConstantsPackage } from '../generators/createConstantsPackage.js';
+import { ensureConstants } from '../generators/createConstants.js';
 import { installMonorepoDeps } from '../generators/install.js';
 import { prepareVersionMatrix } from '../utils/latestSettings.js';
 import {
@@ -61,18 +61,18 @@ export async function addCommand() {
 
   // 이 CLI 의 예전 버전으로 만든 모노레포에는 packages/constants 가 없을 수 있다.
   // Next 앱이 하나라도 생기면 cacheConfig 에 Next fetch 용 revalidate 도 넣는다.
-  const constants = await ensureConstantsPackage(root, scope, {
+  const constants = await ensureConstants(root, {
     revalidate: answers.framework === 'next' || (await hasNextApp(root)),
   });
   if (constants.created) {
     console.log(
-      chalk.dim(`  packages/constants (${constants.name}) 를 만들었습니다. (cacheConfig)\n`),
+      chalk.dim('  packages/constants 를 만들었습니다. (cacheConfig)\n'),
     );
   } else if (!constants.hasCacheConfig) {
     console.log(
       chalk.yellow(
-        `  ⚠ packages/constants 에 src/cacheConfig.ts 가 없습니다. 새 앱의 src/lib/index.ts 가\n` +
-          `    ${constants.name} 에서 cacheConfig 를 가져오므로, 그 패키지에서 export 해주세요.\n`,
+        '  ⚠ packages/constants 에 cacheConfig.ts 가 없습니다. 새 앱의 src/lib/index.ts 가\n' +
+          '    packages/constants 에서 cacheConfig 를 가져오므로, packages/constants/index.ts 에서 export 해주세요.\n',
       ),
     );
   }
@@ -83,7 +83,7 @@ export async function addCommand() {
   } else if (constants.revalidate === 'manual') {
     console.log(
       chalk.yellow(
-        '  ⚠ packages/constants/src/cacheConfig.ts 가 수정돼 있어 revalidate 를 자동으로 넣지 않았습니다.\n' +
+        '  ⚠ packages/constants/cacheConfig.ts 가 수정돼 있어 revalidate 를 자동으로 넣지 않았습니다.\n' +
           '    Next fetch 에 쓰려면 tier 마다 revalidate(초, staleTime 과 같은 시간)를 추가하세요.\n',
       ),
     );

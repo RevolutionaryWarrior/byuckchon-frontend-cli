@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 import { versions } from '../constants/versions.js';
-import { constantsPackageName } from './createConstantsPackage.js';
+import { CONSTANTS_IMPORT_FROM_APP_LIB } from './createConstants.js';
 import { createFolders } from './createFolders.js';
 import { createBaseFiles } from './createBaseFiles.js';
 import { createBcConfig } from './createBcConfig.js';
@@ -16,8 +16,8 @@ import { scaffoldApiConventionDoc } from './apiConventionDoc.js';
  *  - 공유 프리셋(@<scope>/config-eslint, @<scope>/config-typescript)을 workspace 로 참조
  *  - eslint / tsconfig 를 모노레포 프리셋을 extends 하도록 재작성
  *  - .gitignore / .vscode / .prettierrc 는 루트가 담당하므로 앱에서는 제거
- *  - cacheConfig 는 앱에 두지 않고 packages/constants(@<scope>/constants)에서 가져온다
- *    (패키지 생성은 호출자가 ensureConstantsPackage 로 먼저 해둔다)
+ *  - cacheConfig 는 앱에 두지 않고 루트의 packages/constants 를 상대 경로로 가져온다
+ *    (폴더 생성은 호출자가 ensureConstants 로 먼저 해둔다)
  *  - 의존성 설치(pnpm install)는 호출자가 루트에서 일괄 수행
  *
  * @param {object} args
@@ -29,7 +29,7 @@ export async function createApp({ appDir, config, scope }) {
   await fs.mkdir(appDir, { recursive: true });
 
   await createFolders(appDir, config, {
-    cacheConfigFrom: constantsPackageName(scope),
+    cacheConfigFrom: CONSTANTS_IMPORT_FROM_APP_LIB,
   });
   await createBaseFiles(appDir, config);
   await scaffoldApiConventionDoc({
@@ -101,8 +101,6 @@ async function createAppPackageJson(appDir, config, scope) {
       zod: versions.zod,
       clsx: versions.clsx,
       'tailwind-merge': versions['tailwind-merge'],
-      // src/lib/index.ts 가 cacheConfig 를 여기서 가져와 다시 내보낸다.
-      [constantsPackageName(scope)]: 'workspace:*',
     },
     devDependencies: {
       [`@${scope}/config-eslint`]: 'workspace:*',
@@ -187,8 +185,6 @@ async function applyMonorepoConventions(appDir, config, scope) {
       ) + '\n'
     );
   } else {
-    await addTranspilePackages(appDir, [constantsPackageName(scope)]);
-
     await write(
       path.join(appDir, 'tsconfig.json'),
       JSON.stringify(
@@ -211,25 +207,4 @@ async function applyMonorepoConventions(appDir, config, scope) {
       ) + '\n'
     );
   }
-}
-
-/**
- * 워크스페이스 패키지는 빌드 없이 TS 소스를 export 하므로 Next 가 트랜스파일하도록
- * createBaseFiles 의 next.config.ts 에 transpilePackages 를 넣는다.
- */
-async function addTranspilePackages(appDir, packages) {
-  const file = path.join(appDir, 'next.config.ts');
-  const anchor = 'const nextConfig: NextConfig = {\n';
-  const source = await fs.readFile(file, 'utf8');
-  if (!source.includes(anchor)) {
-    throw new Error(`next.config.ts 에서 '${anchor.trim()}' 를 찾지 못했습니다.`);
-  }
-  const list = packages.map((name) => JSON.stringify(name)).join(', ');
-  await write(
-    file,
-    source.replace(
-      anchor,
-      `${anchor}  // 워크스페이스 패키지(packages/*)는 TS 소스를 그대로 export 한다.\n  transpilePackages: [${list}],\n`
-    )
-  );
 }

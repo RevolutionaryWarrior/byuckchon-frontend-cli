@@ -55,7 +55,7 @@ const CACHE_TIERS = [
 /**
  * cacheConfig.ts 내용. api-codegen.md 가 `import { cacheConfig } from '@/lib'` 로 쓴다.
  * React · Next 공통. (Next 서버 컴포넌트에서도 import 가능 — React 의존성이 없는 순수 객체)
- * 모노레포에서는 앱이 아니라 packages/constants 에 둔다. → createConstantsPackage.js
+ * 모노레포에서는 앱이 아니라 packages/constants 에 둔다. → createConstants.js
  *
  * @param {object} [options]
  * @param {boolean} [options.revalidate] tier 마다 Next fetch 용 revalidate(초)를 넣을지.
@@ -102,9 +102,9 @@ async function writeFile(filePath, content) {
  * @param {string} rootDir
  * @param {object} config
  * @param {object} [options]
- * @param {string} [options.cacheConfigFrom] cacheConfig 를 가져올 패키지 이름.
- *   주면 앱에 src/lib/query 를 만들지 않고, `@/lib` 에서 그 패키지의 cacheConfig 를 다시 내보낸다.
- *   (모노레포: `@<scope>/constants`)
+ * @param {string} [options.cacheConfigFrom] src/lib/index.ts 기준으로 cacheConfig 를 가져올 경로.
+ *   주면 앱에 src/lib/query 를 만들지 않고, `@/lib` 에서 그 cacheConfig 를 다시 내보낸다.
+ *   (모노레포: 루트의 packages/constants)
  */
 export async function createFolders(rootDir, config, { cacheConfigFrom } = {}) {
   const folders =
@@ -135,7 +135,7 @@ export { cn } from '@byuckchon-frontend/utils';
     // 캐시 정책은 앱끼리 같아야 하므로 공용 패키지가 갖고, 앱은 `@/lib` 로 다시 내보내기만 한다.
     await writeFile(
       path.join(rootDir, 'src/lib/index.ts'),
-      `// cacheConfig 는 packages/constants 가 관리합니다. 값을 바꾸면 모든 앱에 반영됩니다.
+      `// cacheConfig 는 모노레포 루트의 packages/constants 가 관리합니다. 값을 바꾸면 모든 앱에 반영됩니다.
 export { cacheConfig } from '${cacheConfigFrom}';
 export * from './utils';
 `,
