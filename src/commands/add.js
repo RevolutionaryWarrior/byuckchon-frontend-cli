@@ -60,14 +60,12 @@ export async function addCommand() {
   );
 
   // 이 CLI 의 예전 버전으로 만든 모노레포에는 packages/constants 가 없을 수 있다.
-  // Next 앱이 하나라도 생기면 cacheConfig 에 Next fetch 용 revalidate 도 넣는다.
+  // Next 앱이 하나라도 생기면 Next fetch 용 nextCacheConfig 도 넣는다.
   const constants = await ensureConstants(root, {
-    revalidate: answers.framework === 'next' || (await hasNextApp(root)),
+    next: answers.framework === 'next' || (await hasNextApp(root)),
   });
   if (constants.created) {
-    console.log(
-      chalk.dim('  packages/constants 를 만들었습니다. (cacheConfig)\n'),
-    );
+    console.log(chalk.dim('  packages/constants 를 만들었습니다. (cacheConfig)\n'));
   } else if (!constants.hasCacheConfig) {
     console.log(
       chalk.yellow(
@@ -76,15 +74,16 @@ export async function addCommand() {
       ),
     );
   }
-  if (constants.revalidate === 'added') {
+  if (constants.nextCache === 'added') {
     console.log(
-      chalk.dim('  Next 앱이 있어 packages/constants 의 cacheConfig 에 revalidate(초)를 추가했습니다.\n'),
+      chalk.dim('  Next 앱이 있어 packages/constants/cacheConfig.ts 에 nextCacheConfig 를 추가했습니다.\n'),
     );
-  } else if (constants.revalidate === 'manual') {
+  }
+  if (!constants.nextCacheExported) {
     console.log(
       chalk.yellow(
-        '  ⚠ packages/constants/cacheConfig.ts 가 수정돼 있어 revalidate 를 자동으로 넣지 않았습니다.\n' +
-          '    Next fetch 에 쓰려면 tier 마다 revalidate(초, staleTime 과 같은 시간)를 추가하세요.\n',
+        '  ⚠ packages/constants/index.ts 가 nextCacheConfig 를 내보내지 않습니다.\n' +
+          "    export * from './cacheConfig'; 로 바꾸거나 nextCacheConfig 를 export 해주세요.\n",
       ),
     );
   }
