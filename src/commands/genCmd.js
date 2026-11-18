@@ -3,10 +3,9 @@ import path from 'node:path';
 import chalk from 'chalk';
 
 import { loadProjectConfig } from '../config/index.js';
+import { apiRootForFramework } from '../generators/apiConventionDoc.js';
 import { generateApiTypes } from '../openapi/codegen.js';
 import { loadOpenApi } from '../openapi/fetch.js';
-
-const DEFAULT_OUT = 'src/api/types.gen.ts';
 
 /**
  * `bc gen api-types`
@@ -16,7 +15,7 @@ const DEFAULT_OUT = 'src/api/types.gen.ts';
  *   2) bc.config.json 의 api.openapi
  *
  * 출력 파일:
- *   --out <path>  (기본 src/api/types.gen.ts)
+ *   --out <path>  (기본 <API 루트>/types.gen.ts — React src/api, Next src/lib/api)
  */
 export async function genApiTypesCommand(opts = {}) {
   const { config } = await loadProjectConfig();
@@ -27,7 +26,9 @@ export async function genApiTypesCommand(opts = {}) {
     console.error(chalk.dim('    bc.config.json 의 api.openapi 를 채우세요.\n'));
     process.exit(1);
   }
-  const outFile = path.resolve(opts.out ?? DEFAULT_OUT);
+  // bc.config.json 의 framework 로 API 루트를 정한다. (api-codegen.md 가 놓이는 폴더와 같다)
+  const defaultOut = path.join(apiRootForFramework(config.framework), 'types.gen.ts');
+  const outFile = path.resolve(opts.out ?? defaultOut);
 
   console.log(chalk.bold.cyan('\n  bc gen api-types\n'));
   console.log(chalk.dim(`    source  ${sourceInput}`));
