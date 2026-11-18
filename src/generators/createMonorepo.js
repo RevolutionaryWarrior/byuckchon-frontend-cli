@@ -38,7 +38,8 @@ export async function createMonorepo(config) {
   await writeRootFiles(root, config, scope);
   await writeConfigTypescript(root, scope);
   await writeConfigEslint(root, scope);
-  await ensureConstantsPackage(root, scope);
+  // 최초 앱이 Next 면 cacheConfig 에 Next fetch 용 revalidate 도 넣는다.
+  await ensureConstantsPackage(root, scope, { revalidate: config.framework === 'next' });
   await scaffoldReviewAutomation({ projectRoot: root, projectType: 'monorepo' });
 
   // 최초 앱 하나만 생성. 이후 추가는 `bc add`.

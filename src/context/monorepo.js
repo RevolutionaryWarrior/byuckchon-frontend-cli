@@ -89,6 +89,24 @@ export function deriveScope(name) {
 }
 
 /**
+ * apps/* 중 next 를 의존성으로 가진 앱이 하나라도 있는지.
+ */
+export async function hasNextApp(root) {
+  let entries = [];
+  try {
+    entries = await fs.readdir(path.join(root, 'apps'), { withFileTypes: true });
+  } catch {
+    return false;
+  }
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const pkg = await readJsonSafe(path.join(root, 'apps', entry.name, 'package.json'));
+    if (pkg?.dependencies?.next || pkg?.devDependencies?.next) return true;
+  }
+  return false;
+}
+
+/**
  * apps/<name> 이 이미 존재하는지 확인.
  */
 export async function appExists(root, appName) {

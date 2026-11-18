@@ -12,6 +12,7 @@ import {
   detectMonorepoRoot,
   detectScope,
   appExists,
+  hasNextApp,
 } from '../context/monorepo.js';
 
 /**
@@ -59,7 +60,10 @@ export async function addCommand() {
   );
 
   // 이 CLI 의 예전 버전으로 만든 모노레포에는 packages/constants 가 없을 수 있다.
-  const constants = await ensureConstantsPackage(root, scope);
+  // Next 앱이 하나라도 생기면 cacheConfig 에 Next fetch 용 revalidate 도 넣는다.
+  const constants = await ensureConstantsPackage(root, scope, {
+    revalidate: answers.framework === 'next' || (await hasNextApp(root)),
+  });
   if (constants.created) {
     console.log(
       chalk.dim(`  packages/constants (${constants.name}) 를 만들었습니다. (cacheConfig)\n`),
@@ -69,6 +73,18 @@ export async function addCommand() {
       chalk.yellow(
         `  ⚠ packages/constants 에 src/cacheConfig.ts 가 없습니다. 새 앱의 src/lib/index.ts 가\n` +
           `    ${constants.name} 에서 cacheConfig 를 가져오므로, 그 패키지에서 export 해주세요.\n`,
+      ),
+    );
+  }
+  if (constants.revalidate === 'added') {
+    console.log(
+      chalk.dim('  Next 앱이 있어 packages/constants 의 cacheConfig 에 revalidate(초)를 추가했습니다.\n'),
+    );
+  } else if (constants.revalidate === 'manual') {
+    console.log(
+      chalk.yellow(
+        '  ⚠ packages/constants/src/cacheConfig.ts 가 수정돼 있어 revalidate 를 자동으로 넣지 않았습니다.\n' +
+          '    Next fetch 에 쓰려면 tier 마다 revalidate(초, staleTime 과 같은 시간)를 추가하세요.\n',
       ),
     );
   }
