@@ -152,7 +152,7 @@ bc gen api-types --source https://api.example.com/openapi.json
 bc gen api-types --source ./openapi.yaml
 ```
 
-생성 기본 경로는 `src/api/types.gen.ts`이며, `--out` 옵션으로 바꿀 수 있습니다.
+생성 기본 경로는 `src/api/types.gen.ts`(Next.js 는 `src/lib/api/types.gen.ts`)이며, `--out` 옵션으로 바꿀 수 있습니다.
 
 ### 디자인 토큰 빌드
 
