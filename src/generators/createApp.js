@@ -60,7 +60,6 @@ async function createAppPackageJson(appDir, config, scope) {
         typecheck: 'tsc --noEmit',
         lint: 'eslint .',
         preview: 'vite preview',
-        'tokens:build': 'style-dictionary build --config token.config.js',
         clean: 'rm -rf dist node_modules .turbo',
       }
     : {
@@ -69,7 +68,6 @@ async function createAppPackageJson(appDir, config, scope) {
         start: 'next start',
         typecheck: 'tsc --noEmit',
         lint: 'eslint .',
-        'tokens:build': 'style-dictionary build --config token.config.js',
         clean: 'rm -rf .next node_modules .turbo',
       };
 
@@ -100,7 +98,7 @@ async function createAppPackageJson(appDir, config, scope) {
     devDependencies: {
       [`@${scope}/config-eslint`]: 'workspace:*',
       [`@${scope}/config-typescript`]: 'workspace:*',
-      // global.d.ts, App.css(motion), token.config.js 가 직접 참조한다.
+      // global.d.ts, App.css(motion) 가 직접 참조한다.
       '@byuckchon-frontend/settings': versions['@byuckchon-frontend/settings'],
       '@types/react': versions['@types/react'],
       '@types/react-dom': versions['@types/react-dom'],
@@ -108,7 +106,6 @@ async function createAppPackageJson(appDir, config, scope) {
       eslint: versions.eslint,
       prettier: versions.prettier,
       'prettier-plugin-tailwindcss': versions['prettier-plugin-tailwindcss'],
-      'style-dictionary': versions['style-dictionary'],
       tailwindcss: versions.tailwindcss,
       typescript: versions.typescript,
       ...(isReact

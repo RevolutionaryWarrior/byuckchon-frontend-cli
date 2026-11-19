@@ -7,20 +7,6 @@ async function write(filePath, content) {
   await fs.writeFile(filePath, content, "utf-8");
 }
 
-const TOKEN_CONFIG_JS = `/**
- * 디자이너가 넘긴 src/tokens.json 을 src/tokens.css 로 변환하는 설정.
- *
- *   npm run tokens:build
- *
- * 변환 규칙(color / typography / motion)은 @byuckchon-frontend/settings 가
- * 관리한다. 규칙이 바뀌면 settings 버전만 올리면 되고 이 파일은 그대로 둔다.
- * 프로젝트별 예외가 필요하면 defineTokenConfig({ ... }) 에 인자를 넘긴다.
- */
-import { defineTokenConfig } from "@byuckchon-frontend/settings/tokens";
-
-export default defineTokenConfig();
-`;
-
 // ─── AI 에이전트 가이드 ────────────────────────────────────────────────────────
 
 /**
@@ -97,7 +83,7 @@ UI 컴포넌트는 이 프로젝트의 디자인에 맞춰 직접 만드세요.
 
 ## 2. 설정 파일은 직접 고치지 않는다
 
-\`eslint.config.js\`, \`prettier.config.js\`, \`tsconfig.*.json\`, \`token.config.js\` 는
+\`eslint.config.js\`, \`prettier.config.js\`, \`tsconfig.*.json\` 은
 \`@byuckchon-frontend/settings\` 를 참조만 합니다. 규칙 본체는 node_modules 안에 있습니다.
 
 예외가 필요하면 **덮어쓰지 말고 뒤에 이어붙이세요.**
@@ -398,18 +384,14 @@ export default defineConfig({
   await createEslintConfig(rootDir);
   await createGitignore(rootDir, "react");
   await createVscodeSettings(rootDir);
-  await write(path.join(rootDir, "token.config.js"), TOKEN_CONFIG_JS);
 
   // src/App.css
   await write(
     path.join(rootDir, "src/App.css"),
     `@import 'tailwindcss';
 @import "@byuckchon-frontend/settings/motion";
-@import "./tokens.css";
 `
   );
-  await write(path.join(rootDir, "src/tokens.css"), "");
-  await write(path.join(rootDir, "src/tokens.json"), "{}\n");
 
   // src/main.tsx
   await write(
@@ -541,12 +523,8 @@ export default config;
     path.join(rootDir, "src/app/globals.css"),
     `@import 'tailwindcss';
 @import "@byuckchon-frontend/settings/motion";
-@import "../tokens.css";
 `
   );
-  await write(path.join(rootDir, "token.config.js"), TOKEN_CONFIG_JS);
-  await write(path.join(rootDir, "src/tokens.css"), "");
-  await write(path.join(rootDir, "src/tokens.json"), "{}\n");
 
   // src/app/layout.tsx
   await write(

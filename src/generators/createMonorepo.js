@@ -74,7 +74,6 @@ async function writeRootFiles(root, config, scope) {
       lint: 'turbo run lint',
       'lint:fix': 'turbo run lint -- --fix',
       typecheck: 'turbo run typecheck',
-      'tokens:build': 'turbo run tokens:build',
       format:
         'prettier --write "**/*.{ts,tsx,js,jsx,cjs,json,md,yml,yaml}" --ignore-path .gitignore --ignore-path .prettierignore',
       'format:check':

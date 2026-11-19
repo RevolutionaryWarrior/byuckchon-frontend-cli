@@ -154,25 +154,6 @@ bc gen api-types --source ./openapi.yaml
 
 생성 기본 경로는 `src/api/types.gen.ts`이며, `--out` 옵션으로 바꿀 수 있습니다.
 
-### 디자인 토큰 빌드
-
-`bc init`으로 생성한 프로젝트에는 토큰 변환 설정이 함께 들어갑니다.
-
-```text
-token.config.js     # @byuckchon-frontend/settings/tokens 프리셋을 사용
-src/tokens.json     # 디자이너가 Figma(Tokens Studio)에서 export 한 파일을 여기에 덮어씀
-src/tokens.css      # 아래 명령으로 자동 생성 (직접 수정하지 않음)
-```
-
-```bash
-npm run tokens:build
-```
-
-color는 `@theme`의 `--color-*`로, typography는 `@utility text-*`로, motion 등 나머지 토큰은
-`:root` 변수로 출력됩니다. duration 값이 단위 없는 숫자면 `ms`가 자동으로 붙고, settings에 없는
-`--motion-*` 이름이 있으면 경고가 나옵니다. 변환 규칙은 `@byuckchon-frontend/settings`가
-관리하므로, 규칙이 바뀌면 패키지 버전만 올리면 기존 프로젝트에도 그대로 반영됩니다.
-
 ### ESLint Convention Review
 
 `bc init`과 `bc adopt`는 프로젝트 루트에 아래 파일을 준비합니다.

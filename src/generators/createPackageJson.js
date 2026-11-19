@@ -15,7 +15,6 @@ export async function createPackageJson(rootDir, config) {
       ? {
           dev: 'vite',
           build: 'tsc -b && vite build',
-          'tokens:build': 'style-dictionary build --config token.config.js',
           // PR Check workflow 가 lint / typecheck / build 를 각각 호출한다.
           typecheck: 'tsc -b',
           lint: 'eslint . --ext ts,tsx',
@@ -28,7 +27,6 @@ export async function createPackageJson(rootDir, config) {
       : {
           dev: 'next dev',
           build: 'next build',
-          'tokens:build': 'style-dictionary build --config token.config.js',
           typecheck: 'tsc --noEmit',
           start: 'next start',
           lint: 'eslint .',
@@ -59,13 +57,12 @@ export async function createPackageJson(rootDir, config) {
       '@types/node': versions['@types/node'],
       '@trivago/prettier-plugin-sort-imports':
         versions['@trivago/prettier-plugin-sort-imports'],
-      // eslint/prettier/tsconfig/tokens 설정과 motion CSS 가 모두 이 패키지를 참조한다.
+      // eslint/prettier/tsconfig 설정과 motion CSS 가 모두 이 패키지를 참조한다.
       // (ESLint 플러그인도 이 패키지가 의존성으로 들고 온다)
       '@byuckchon-frontend/settings': versions['@byuckchon-frontend/settings'],
       eslint: versions.eslint,
       prettier: versions.prettier,
       'prettier-plugin-tailwindcss': versions['prettier-plugin-tailwindcss'],
-      'style-dictionary': versions['style-dictionary'],
       tailwindcss: versions.tailwindcss,
       typescript: versions.typescript,
       ...(isReact
