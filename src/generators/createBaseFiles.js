@@ -24,8 +24,8 @@ export default defineTokenConfig();
 // ─── AI 에이전트 가이드 ────────────────────────────────────────────────────────
 
 /**
- * AGENTS.md 를 만든다. Codex · Cursor 등이 이 이름을 기본으로 찾고,
- * CLAUDE.md 는 이 파일을 import 하는 한 줄짜리로 둬서 문서를 하나만 관리한다.
+ * AGENTS.md 를 만든다. Claude Code(2.1.277+) · Codex · Cursor 가 모두 이 이름을 읽으므로
+ * CLAUDE.md 는 만들지 않는다. (Claude Code 는 CLAUDE.md 가 없을 때 AGENTS.md 를 읽는다)
  *
  * 매 세션 컨텍스트에 실리므로 짧게 유지한다. 상세 API 는 각 패키지 README 로 넘긴다.
  */
@@ -393,7 +393,6 @@ export default defineConfig({
 
   await write(path.join(rootDir, ".nvmrc"), await readSettingsAsset("project/nvmrc"));
   await write(path.join(rootDir, "AGENTS.md"), agentsDoc("react"));
-  await write(path.join(rootDir, "CLAUDE.md"), "@AGENTS.md\n");
 
   await createPrettierConfig(rootDir);
   await createEslintConfig(rootDir);
@@ -522,7 +521,6 @@ export default nextConfig;
 
   await write(path.join(rootDir, ".nvmrc"), await readSettingsAsset("project/nvmrc"));
   await write(path.join(rootDir, "AGENTS.md"), agentsDoc("next"));
-  await write(path.join(rootDir, "CLAUDE.md"), "@AGENTS.md\n");
 
   await createPrettierConfig(rootDir);
   await createNextEslintConfig(rootDir);
