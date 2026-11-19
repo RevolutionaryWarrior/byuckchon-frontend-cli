@@ -18,7 +18,7 @@
    `PaginationParams` 등)은 새로 만들지 말고 그대로 가져다 쓴다. import 경로가 확실치 않으면
    `search_code` 로 실제 export 위치를 확인한다.
 3. **계약 파일은 항상 함께.** React는 `api / zod / type / service / index`를 한 번에 생성한다.
-   Next.js는 공용 `zod / type`, 서버 기본 호출 파일, 필요한 경우 Client 호출 파일과 service를 생성한다.
+   Next.js는 공용 `zod / type`, 서버 호출 파일(`*.server.ts`), 필요한 경우 Client 호출 파일(`*.api.ts`)과 service를 생성한다.
    이미 같은 리소스가 있으면 기존 파일 구성과 이름을 우선한다.
 
 ---
@@ -53,16 +53,19 @@ src/api/
 ├── instance.ts               # React: axios 인스턴스
 ├── index.ts                  # 모든 API 모듈 export
 └── user/                     # 리소스 폴더 (소문자)
-    ├── user.api.ts           # React: axios / Next.js: Server fetch 호출
-    ├── user.api.client.ts    # Next.js: Client 호출이 필요할 때만 생성
+    ├── user.api.ts           # React: axios 호출 / Next.js: Client 호출이 필요할 때만 생성
+    ├── user.server.ts        # Next.js: Server 전용 호출 (server-only + serverAuthHttp)
     ├── user.zod.ts           # 응답/요청 zod 스키마
     ├── user.type.ts          # zod 로부터 추론한 타입 + 입력 타입
     ├── user.service.ts       # react-query 훅 (use~) — 비즈니스 로직
     └── index.ts              # 외부 노출 (service, type 만)
 ```
 
-- 파일 prefix 는 폴더명과 같다 (`user/` → `user.api.ts`, `user.zod.ts` ...).
-- `RESOURCE` 상수는 `/api/<path>` 형태로 `.api.ts` 상단에 둔다.
+- 파일 prefix 는 폴더명과 같은 **소문자**다 (`user/` → `user.api.ts`, `favorite-stores/` → `favorite-stores.api.ts`).
+  `User.api.ts` 처럼 대문자로 쓰지 않는다.
+- 파일 종류는 `api` · `zod` · `type` · `service` · `server`(Next.js 서버 전용)다.
+  응답을 화면 모양으로 바꾸는 `user.mapper.ts` 같은 보조 파일이 필요하면 둬도 된다.
+- `RESOURCE` 상수는 `/api/<path>` 형태로 `.api.ts` · `.server.ts` 상단에 둔다.
 
 ---
 
@@ -95,15 +98,15 @@ export * from './clientAuthHttp';
 // 금지: export * from './serverAuthHttp';
 ```
 
-`serverAuthHttp`와 Server API는 barrel을 거치지 않고 절대경로로 직접 import한다.
+`serverAuthHttp`와 Server API(`*.server.ts`)는 barrel을 거치지 않고 절대경로로 직접 import한다.
 
 ```ts
 import { serverAuthHttp } from '@/api/http/serverAuthHttp';
 ```
 
 - Server 파일은 가능하면 `import 'server-only';`로 경계를 표시한다.
-- 인증 호출은 Server를 기본으로 하고 Client에서도 호출해야 할 때만 `*.client.ts`를 만든다.
-- Client service는 Client 호출 파일만 import하며 Server 파일을 간접 참조하지 않는다.
+- 인증 호출은 Server(`*.server.ts`)를 기본으로 하고 Client에서도 호출해야 할 때만 `*.api.ts`를 만든다.
+- Client service는 Client 호출 파일(`*.api.ts`)만 import하며 Server 파일(`*.server.ts`)을 간접 참조하지 않는다.
 - `useQuery`/`useMutation`을 export하는 service는 Client 전용이다.
 - type과 zod schema만 Server/Client가 공유한다.
 
@@ -150,11 +153,11 @@ import { serverAuthHttp } from '@/api/http/serverAuthHttp';
 
 ## 2. 각 파일 작성 규칙
 
-### 2-1. `user.api.ts` — 순수 호출 함수
+### 2-1. `user.api.ts` · `user.server.ts` — 순수 호출 함수
 
-- React는 `baseInstance`(axios)를 사용한다.
-- Next.js는 Server 파일에서 기존 `serverAuthHttp`를 절대경로로 import한다. Client 호출이 필요할 때만
-  `*.client.ts`를 만들고 기존 `clientAuthHttp`를 사용한다. wrapper가 없으면 자동 생성하지 않는다.
+- React는 `user.api.ts`에서 `baseInstance`(axios)를 사용한다.
+- Next.js는 Server 호출을 `user.server.ts`에 두고, 기존 `serverAuthHttp`를 절대경로로 import한다.
+  Client 호출이 필요할 때만 `user.api.ts`를 만들고 기존 `clientAuthHttp`를 사용한다. wrapper가 없으면 자동 생성하지 않는다.
 - React는 `const { data } = await baseInstance.X(...)` 후 `data`를 반환한다.
 - Next.js는 fetch wrapper의 generic에 응답 타입을 전달하고 JSON data를 반환받는다.
 - 쿼리스트링은 기존 wrapper 규칙(axios의 `{ params }`, fetch wrapper의 `searchParams` 등)을 따른다.
@@ -187,7 +190,9 @@ export const deleteUser = async (userId: string) => {
 ```
 
 ```ts
-// Next.js Server
+// Next.js Server — user.server.ts
+import 'server-only';
+
 import { serverAuthHttp } from '@/api/http/serverAuthHttp';
 import type { UserItem } from './user.type';
 
@@ -305,7 +310,7 @@ export const useDeleteUser = () => {
 ### 2-5. `index.ts` (리소스) — 노출
 
 - **`service` 와 `type` 만** 재노출 (`api`, `zod` 는 노출하지 않음).
-- Next.js에서는 Server 호출 파일을 Client가 접근 가능한 barrel에서 재노출하지 않는다.
+- Next.js에서는 Server 호출 파일(`*.server.ts`)을 Client가 접근 가능한 barrel에서 재노출하지 않는다.
 
 ```ts
 export * from './user.service';
@@ -456,7 +461,8 @@ export const useGetUser = (options?: Record<string, any>) => {
 
 ## 6. 네이밍 & 스타일 요약
 
-- 폴더: 소문자 / kebab-case (`user`, `favorite-stores`). 파일 prefix = 폴더명.
+- 폴더: 소문자 / kebab-case (`user`, `favorite-stores`). 파일 prefix = 폴더명 그대로(소문자).
+- 파일 종류: `api` · `zod` · `type` · `service` · `server`(Next.js 서버 전용). 보조 파일(`mapper` 등)은 필요하면 추가.
 - 함수: 동사 + 리소스 (`getUserList`, `createUser`, `updateUser`).
 - 훅: `use` + 함수 의미 (`useGetUserList`, `useCreateUser`).
 - `RESOURCE` 상수로 baseURL 경로 관리, 동적 경로는 템플릿 리터럴.
@@ -470,7 +476,7 @@ export const useGetUser = (options?: Record<string, any>) => {
 
 1. [ ] 위치를 맞췄다 (`src/api`).
 2. [ ] 엔드포인트가 **next(무한스크롤)** 인지 판단했다. (§1)
-3. [ ] `api / zod / type / service / index` 5파일을 모두 만들었다.
+3. [ ] React는 `api / zod / type / service / index`, Next.js는 `server`(+ 필요하면 `api`) `/ zod / type / service / index`를 만들었다.
 4. [ ] Swagger 응답을 zod 로 정확히 매핑(nullable/optional/enum/date/$ref).
 5. [ ] 타입은 `z.infer` 로 추론.
 6. [ ] 조회 훅 queryFn 에서 `safeParse` 후 실패 시 원본 반환.
