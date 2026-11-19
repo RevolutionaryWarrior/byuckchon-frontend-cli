@@ -116,11 +116,26 @@ bc
 
 | 형태 | 생성 결과 | 적합한 경우 |
 | --- | --- | --- |
-| 단일 프로젝트 | React(Vite) 또는 Next.js(App Router)  | 하나의 웹 서비스를 빠르게 시작할 때 |
-| 모노레포 | pnpm + Turborepo 루트, `apps/`, `packages/` | 여러 웹 앱과 공용 패키지를 함께 관리할 때 |
+| 단일 프로젝트 | React(Vite) · Next.js(App Router) · Electron 중 하나 | 하나의 서비스를 빠르게 시작할 때 |
+| 모노레포 | pnpm + Turborepo 루트, `apps/`, `packages/` | 여러 앱과 공용 패키지를 함께 관리할 때 |
 
 생성 프로젝트에는 TypeScript, ESLint, Prettier, Tailwind, `bc.config.json`, API 코드 가이드가
-기본으로 포함됩니다.
+기본으로 포함됩니다. 모노레포에 앱을 더할 때(`bc add`)도 같은 세 가지 중에서 고릅니다.
+
+**Electron**은 React 템플릿에 데스크톱 앱 설정을 더한 것입니다.
+렌더러(`src/`)는 React와 같은 구조 · 규칙을 쓰고, `electron/`에 메인 프로세스와 preload가 들어갑니다.
+
+```text
+electron/main.ts        메인 프로세스 (창 · OS 기능)
+electron/preload.ts     렌더러에 노출할 API (contextBridge → window.electron)
+electron-builder.json   설치 파일 설정 (appId · 대상 OS)
+src/                    렌더러 = React 앱
+```
+
+- `dev`: Vite와 Electron이 같이 뜹니다. (vite-plugin-electron)
+- `build`: 렌더러는 `dist/`, 메인 · preload는 `dist-electron/`
+- `package`: 설치 파일을 `release/`에 만듭니다. (electron-builder)
+- Electron 실행 파일은 설치할 때가 아니라 처음 `dev`를 실행할 때 내려받습니다. (Electron 45부터)
 
 ```bash
 bc init
