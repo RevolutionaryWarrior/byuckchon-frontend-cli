@@ -21,6 +21,48 @@ import { defineTokenConfig } from "@byuckchon-frontend/settings/tokens";
 export default defineTokenConfig();
 `;
 
+/**
+ * 커밋 메시지 · NOTE/TODO · 브랜치 이름. 웹 · Expo AGENTS.md 가 함께 쓴다.
+ * @param {number} n 첫 섹션 번호
+ */
+export function workflowSections(n) {
+  return `## ${n}. 커밋 메시지
+
+\`\`\`
+<type>: <요약>
+\`\`\`
+
+\`feat\` \`fix\` \`refactor\` \`perf\` \`style\` \`docs\` \`test\` \`chore\`
+
+## ${n + 1}. 리뷰어가 봐야 할 것은 코드 주석으로 남긴다
+
+확신이 없거나, 임시로 둔 코드가 있거나, 리뷰어의 판단이 필요하면
+**해당 코드 옆에 \`NOTE:\` 또는 \`TODO:\` 주석을 남기세요.**
+
+\`\`\`ts
+// TODO: 에러 처리 미구현 — 백엔드 에러 코드 확정 후 작업
+const data = await fetchOrders();
+
+const price = 0; // NOTE: 응답 스키마 미확정이라 임시값
+\`\`\`
+
+PR 을 열면 **이번 작업에서 새로 추가된 것만** 골라 PR 본문의 "확인 사항"에
+파일·줄 번호와 함께 자동으로 모입니다. 기존 코드에 있던 건 가져오지 않습니다.
+
+말없이 넘어가면 리뷰에서 놓칩니다. 애매하면 남기세요.
+
+## ${n + 2}. 브랜치 이름
+
+\`\`\`
+<type>/<작업 요약>/<작업자>
+feature/update-mypage-style/hyuk
+\`\`\`
+
+PR 제목은 첫 토막이 대괄호로 자동으로 붙습니다. → \`[feature] 마이페이지 디자인 적용\`
+
+`;
+}
+
 // ─── AI 에이전트 가이드 ────────────────────────────────────────────────────────
 
 /**
@@ -114,41 +156,7 @@ export default [
 
 \`.vscode/settings.json\`, \`.nvmrc\`${isReact ? "" : ""} 같은 파일은 \`npx byuckchon-settings-sync\` 로 갱신합니다.
 
-## 3. 커밋 메시지
-
-\`\`\`
-<type>: <요약>
-\`\`\`
-
-\`feat\` \`fix\` \`refactor\` \`perf\` \`style\` \`docs\` \`test\` \`chore\`
-
-## 4. 리뷰어가 봐야 할 것은 코드 주석으로 남긴다
-
-확신이 없거나, 임시로 둔 코드가 있거나, 리뷰어의 판단이 필요하면
-**해당 코드 옆에 \`NOTE:\` 또는 \`TODO:\` 주석을 남기세요.**
-
-\`\`\`ts
-// TODO: 에러 처리 미구현 — 백엔드 에러 코드 확정 후 작업
-const data = await fetchOrders();
-
-const price = 0; // NOTE: 응답 스키마 미확정이라 임시값
-\`\`\`
-
-PR 을 열면 **이번 작업에서 새로 추가된 것만** 골라 PR 본문의 "확인 사항"에
-파일·줄 번호와 함께 자동으로 모입니다. 기존 코드에 있던 건 가져오지 않습니다.
-
-말없이 넘어가면 리뷰에서 놓칩니다. 애매하면 남기세요.
-
-## 5. 브랜치 이름
-
-\`\`\`
-<type>/<작업 요약>/<작업자>
-feature/update-mypage-style/hyuk
-\`\`\`
-
-PR 제목은 첫 토막이 대괄호로 자동으로 붙습니다. → \`[feature] 마이페이지 디자인 적용\`
-
-## 6. 폴더 구조
+${workflowSections(3)}## 6. 폴더 구조
 
 ${
   isReact
