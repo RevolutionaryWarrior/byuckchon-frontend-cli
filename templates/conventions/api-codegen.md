@@ -39,6 +39,7 @@
 
 사용자는 보통 브라우저로 보는 Swagger **화면** 주소(예: `https://api.example.com/api/docs`)를 준다.
 화면(HTML)으로는 코드를 만들 수 없으니 **JSON 스펙 주소**를 찾아 쓰고, `api.openapi` 에도 JSON 주소를 넣는다.
+`api.openapi` 에 화면 주소가 들어 있을 때도 같다. JSON 주소를 찾으면 그 값으로 바꿔 넣는다.
 
 ```bash
 curl -s -o /dev/null -w '%{content_type}\n' "<받은 주소>"   # text/html 이면 화면 주소
