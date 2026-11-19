@@ -5,6 +5,7 @@ import { versions } from '../constants/versions.js';
 import { readSettingsAsset } from '../utils/settingsAssets.js';
 import { agentsDoc } from './createBaseFiles.js';
 import { createApp } from './createApp.js';
+import { ELECTRON_OUTPUT_DIRS, isElectron } from './framework.js';
 import { scaffoldReviewAutomation } from './scaffoldReviewAutomation.js';
 
 /**
@@ -21,7 +22,7 @@ import { scaffoldReviewAutomation } from './scaffoldReviewAutomation.js';
  *     README.md
  *     packages/config-typescript/*
  *     packages/config-eslint/*
- *     apps/<initial-app>/      (사용자가 고른 React 또는 Next 하나)
+ *     apps/<initial-app>/      (사용자가 고른 React · Next · Electron 하나)
  *
  * @param {object} config { projectName, framework, appName, scope }
  */
@@ -37,6 +38,8 @@ export async function createMonorepo(config) {
   await writeConfigTypescript(root, scope);
   await writeConfigEslint(root, scope);
   await scaffoldReviewAutomation({ projectRoot: root, projectType: 'monorepo' });
+
+  if (isElectron(config.framework)) await prepareRootForElectron(root);
 
   // 최초 앱 하나만 생성. 이후 추가는 `bc add`.
   const appName = config.appName;
@@ -331,4 +334,28 @@ export default ${named};
   await write(path.join(dir, 'base.js'), reexport('base', 'baseConfig'));
   await write(path.join(dir, 'react.js'), reexport('react', 'reactConfig'));
   await write(path.join(dir, 'next.js'), reexport('next', 'nextConfig'));
+}
+
+/**
+ * 모노레포 루트를 Electron 앱에 맞춘다. (bc init 첫 앱 · bc add 에서 호출, 여러 번 불러도 같다)
+ *
+ * 빌드 결과(dist-electron) · 설치 파일(release)을 루트 .gitignore 에 넣는다.
+ * 루트 format · format:check 가 .gitignore 를 ignore-path 로 쓰므로 여기서 빠진다.
+ * (Electron 실행 파일은 install 스크립트가 아니라 처음 실행할 때 내려받는다.
+ *  그래서 pnpm 10 의 install 스크립트 차단과 상관없다)
+ */
+export async function prepareRootForElectron(root) {
+  const ignorePath = path.join(root, '.gitignore');
+  let ignore = '';
+  try {
+    ignore = await fs.readFile(ignorePath, 'utf8');
+  } catch {
+    /* 없으면 새로 만든다 */
+  }
+  const lines = ignore.split(/\r?\n/);
+  const missing = ELECTRON_OUTPUT_DIRS.map((d) => `${d}/`).filter((l) => !lines.includes(l));
+  if (missing.length) {
+    const prefix = ignore && !ignore.endsWith('\n') ? '\n' : '';
+    await fs.writeFile(ignorePath, `${ignore}${prefix}\n# Electron\n${missing.join('\n')}\n`, 'utf8');
+  }
 }
