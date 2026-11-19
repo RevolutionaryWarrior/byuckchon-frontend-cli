@@ -6,7 +6,10 @@ import inquirer from 'inquirer';
 
 import { detectProjectContext, summarizeContext } from '../context/detect.js';
 import { CONFIG_PATHS } from '../config/index.js';
-import { scaffoldApiConventionDoc } from '../generators/apiConventionDoc.js';
+import {
+  scaffoldApiConventionDoc,
+  scaffoldOpenapiScript,
+} from '../generators/apiConventionDoc.js';
 import { scaffoldReviewAutomation } from '../generators/scaffoldReviewAutomation.js';
 import { detectMonorepoRoot } from '../context/monorepo.js';
 import { ensureRequiredDependencies } from '../utils/ensureRequiredDependencies.js';
@@ -155,6 +158,10 @@ export async function adoptCommand(opts = {}) {
     } else {
       console.log(chalk.dim(`  API 코드 컨벤션 문서 유지: ${relPath} (이미 존재)`));
     }
+    const script = await scaffoldOpenapiScript({ projectRoot: cwd });
+    if (script.written) {
+      console.log(chalk.green(`  ✓ Swagger 도우미 스크립트 생성: ${script.relPath}`));
+    }
   } catch {
     /* 문서 스캐폴드 실패는 치명적이지 않음 */
   }
@@ -230,7 +237,8 @@ export async function adoptCommand(opts = {}) {
   if (next.api.openapi) {
     console.log();
     console.log(chalk.dim('  다음:'));
-    console.log(chalk.dim('    bc gen api-types               # OpenAPI → TS 타입 생성'));
+    console.log(chalk.dim('    AI 에게 "user API 만들어줘" 처럼 요청하면 api.openapi 의 Swagger 를 보고'));
+    console.log(chalk.dim('    api-codegen.md 컨벤션대로 API 코드를 만듭니다.'));
   }
   console.log();
 }

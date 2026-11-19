@@ -8,7 +8,10 @@ import { createBcConfig } from "./createBcConfig.js";
 import { createFolders } from "./createFolders.js";
 import { createPackageJson } from "./createPackageJson.js";
 import { createReadme } from "./createReadme.js";
-import { scaffoldApiConventionDoc } from "./apiConventionDoc.js";
+import {
+  scaffoldApiConventionDoc,
+  scaffoldOpenapiScript,
+} from "./apiConventionDoc.js";
 import { scaffoldReviewAutomation } from "./scaffoldReviewAutomation.js";
 import { BYUCKCHON_PACKAGES, formatGeneratedFiles } from "./install.js";
 
@@ -28,6 +31,7 @@ export async function createProject(config) {
     framework: config.framework,
   });
   await createBcConfig(rootDir, config);
+  await scaffoldOpenapiScript({ projectRoot: rootDir });
   await scaffoldReviewAutomation({
     projectRoot: rootDir,
     projectType: "single",

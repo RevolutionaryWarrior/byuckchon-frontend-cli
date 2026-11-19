@@ -4,7 +4,7 @@
 
 ```text
 프로젝트 생성 또는 연결
-→ OpenAPI 스펙에서 TS 타입 생성
+→ Swagger(OpenAPI)를 보고 AI 가 API 코드 생성 (api-codegen.md 컨벤션)
 → PR에서 기계적인 컨벤션을 자동 리뷰
 ```
 
@@ -58,11 +58,10 @@ byuckchon-frontend-cli
 
 CLI 자체는 컴퓨터에 **한 번만 글로벌 설치**하면 됩니다.
 
-다만 `bc`는 현재 실행한 디렉터리부터 상위 디렉터리로 이동하면서 가장 가까운 `bc.config.json`을 찾기 때문에 
+`bc.config.json`은 각 앱 디렉터리마다 두는 것을 권장합니다.
 
-각 앱이나 패키지 디렉터리마다 별도로 두어 실행도 해당 디렉터리 마다 실행하는걸 권장합니다.
-
-앱마다 설정 파일을 분리하면 각 프로젝트에 맞는 `detected.*` 정보가 생성됩니다.
+앱마다 설정 파일을 분리하면 각 앱의 Swagger 주소(`api.openapi`)와 `detected.*` 정보를 따로 가질 수 있고,
+AI 는 작업 중인 앱에서 가장 가까운 `bc.config.json` 을 읽습니다.
 
 
 #### 모노레포 권장 사용 흐름
@@ -71,12 +70,9 @@ CLI 자체는 컴퓨터에 **한 번만 글로벌 설치**하면 됩니다.
 # 1. CLI 글로벌 설치
 pnpm add -g byuckchon-frontend-cli
 
-# 2. 앱별 설정 생성
+# 2. 앱별 설정 생성 (Swagger URL 은 앱별 bc.config.json 의 api.openapi 에)
 cd apps/web && bc adopt
 cd ../mobile && bc adopt
-
-# 3. 작업할 앱에서 실행
-cd ../web && bc gen api-types
 ```
 
 
@@ -138,21 +134,34 @@ bc adopt
 모노레포 앱 디렉터리에서 실행하면 앱별 `bc.config.json`을 만들고, PR 리뷰 자동화 파일은
 모노레포 루트에 한 번만 둡니다.
 
-### OpenAPI와 타입 생성
+### Swagger로 API 코드 만들기
 
-`bc.config.json`의 `api.openapi`에 스펙 URL을 설정하거나 `--source`로 직접 지정하면,
-OpenAPI 3.0 / 3.1 스펙에서 TS 타입 파일을 생성합니다.
+`bc.config.json`의 `api.openapi`에 백엔드 Swagger(OpenAPI) URL 이나 파일 경로를 적어 두면,
+AI 에이전트(Claude 등)가 API 루트의 `api-codegen.md` 컨벤션에 따라 Swagger 를 직접 읽고
+`api / zod / type / service / index` 코드를 만듭니다.
 
-```bash
-# bc.config.json에 등록한 OpenAPI URL 사용
-bc gen api-types
-
-# URL 또는 파일을 직접 지정
-bc gen api-types --source https://api.example.com/openapi.json
-bc gen api-types --source ./openapi.yaml
+```json
+{
+  "api": {
+    "openapi": "https://api.example.com/openapi.json"
+  }
+}
 ```
 
-생성 기본 경로는 `src/api/types.gen.ts`이며, `--out` 옵션으로 바꿀 수 있습니다.
+예를 들어 "user API 만들어줘"라고 요청하면, Swagger 에서 해당 경로와 참조 스키마만 추려 코드를 만듭니다.
+`bc init` · `bc add` 에서 Swagger 주소를 물어봅니다. 건너뛰면 AI 가 처음 한 번 물어보고 `bc.config.json` 에 채웁니다.
+Swagger 화면 주소(예: `/api/docs`)를 알려줘도 AI 가 JSON 스펙 주소(예: `/api/docs-json`)를 찾아 넣습니다.
+타입은 zod 스키마에서 `z.infer` 로 추론하므로 별도 타입 생성 단계는 없습니다.
+
+백엔드 스펙이 바뀌면 AI 가 작업 전에 알려줍니다. 앱 루트의 `scripts/openapi.mjs` 가
+마지막으로 반영한 스펙(`openapi.snapshot.json`)과 지금 스펙을 비교해, 바뀐 경로와 필드만 뽑아 줍니다.
+(의존성 없음, Node 18+)
+
+```bash
+node scripts/openapi.mjs diff            # 바뀐 경로 · 필드
+node scripts/openapi.mjs show /api/user  # 그 경로 + 참조 스키마만
+node scripts/openapi.mjs save            # 지금 스펙을 스냅샷으로 저장
+```
 
 ### 디자인 토큰 빌드
 

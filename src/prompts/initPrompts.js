@@ -19,8 +19,15 @@ const FRAMEWORK_CHOICES = [
   { name: 'Next.js  (App Router + TypeScript)', value: 'next' },
 ];
 
-// OpenAPI URL 은 묻지 않는다. 생성 단계에서는 거의 쓰지 않아서,
-// 필요하면 bc.config.json 의 api.openapi 에 직접 넣거나 bc adopt 로 채운다.
+// Swagger 주소는 선택이다. 받으면 bc.config.json 의 api.openapi 에 넣고,
+// 비우면 AI 가 API 코드를 처음 만들 때 물어보고 채운다. (api-codegen.md)
+// 화면 주소(/api/docs)를 넣어도 AI 가 JSON 주소를 찾아 바꿔 넣는다.
+const OPENAPI_QUESTION = {
+  type: 'input',
+  name: 'openapi',
+  message: '백엔드 Swagger 주소 (선택, 엔터로 건너뛰기):',
+  filter: (input) => input.trim(),
+};
 
 /** 단일 프로젝트 vs 모노레포 선택. */
 export async function askProjectType() {
@@ -73,6 +80,7 @@ export async function askMonorepoQuestions() {
       message: '이 앱의 프레임워크는?',
       choices: FRAMEWORK_CHOICES,
     },
+    OPENAPI_QUESTION,
   ]).then((rest) => ({ ...base, ...rest }));
 }
 
@@ -91,6 +99,7 @@ export async function askAddQuestions({ scope } = {}) {
       message: '프레임워크는?',
       choices: FRAMEWORK_CHOICES,
     },
+    OPENAPI_QUESTION,
   ]);
 }
 
@@ -116,5 +125,6 @@ export async function askInitQuestions() {
         { name: 'Next.js  (App Router + TypeScript)', value: 'next' },
       ],
     },
+    OPENAPI_QUESTION,
   ]);
 }

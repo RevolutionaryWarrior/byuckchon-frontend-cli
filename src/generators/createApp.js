@@ -5,7 +5,10 @@ import { versions } from '../constants/versions.js';
 import { createFolders } from './createFolders.js';
 import { createBaseFiles } from './createBaseFiles.js';
 import { createBcConfig } from './createBcConfig.js';
-import { scaffoldApiConventionDoc } from './apiConventionDoc.js';
+import {
+  scaffoldApiConventionDoc,
+  scaffoldOpenapiScript,
+} from './apiConventionDoc.js';
 
 /**
  * 모노레포(pnpm workspace) 안의 apps/<name> 으로 React/Next 앱을 하나 만든다.
@@ -32,6 +35,7 @@ export async function createApp({ appDir, config, scope }) {
     framework: config.framework,
   });
   await createBcConfig(appDir, config);
+  await scaffoldOpenapiScript({ projectRoot: appDir });
 
   await createAppPackageJson(appDir, config, scope);
   await applyMonorepoConventions(appDir, config, scope);

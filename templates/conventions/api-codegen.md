@@ -18,8 +18,99 @@
    `PaginationParams` 등)은 새로 만들지 말고 그대로 가져다 쓴다. import 경로가 확실치 않으면
    `search_code` 로 실제 export 위치를 확인한다.
 3. **계약 파일은 항상 함께.** React는 `api / zod / type / service / index`를 한 번에 생성한다.
-   Next.js는 공용 `zod / type`, 서버 기본 호출 파일, 필요한 경우 Client 호출 파일과 service를 생성한다.
+   Next.js는 공용 `zod / type`, 서버 호출 파일(`*.server.ts`), 필요한 경우 Client 호출 파일(`*.api.ts`)과 service를 생성한다.
    이미 같은 리소스가 있으면 기존 파일 구성과 이름을 우선한다.
+
+---
+
+## 📥 Swagger 가져오기
+
+1. 사용자가 Swagger JSON · URL · 엔드포인트를 주면 그것을 쓴다.
+2. 없으면 가장 가까운 `bc.config.json` 의 `api.openapi`(URL 또는 파일 경로)를 쓴다.
+3. `api.openapi` 가 비어 있으면(`null`) 사용자에게 Swagger URL 을 묻는다.
+   받은 URL 은 그 `bc.config.json` 의 `api.openapi` 에 채운 뒤 진행한다. 다음부터는 묻지 않는다.
+   - 1번에서 사용자가 URL 을 줬는데 `api.openapi` 가 비어 있으면 그 URL 도 채운다.
+   - 붙여 넣은 JSON 처럼 주소가 아닌 것은 채우지 않는다.
+   - `bc.config.json` 은 팀이 같이 쓰는 파일이다. 토큰이 붙은 URL 같은 비밀값은 넣지 않는다.
+   - `bc.config.json` 이 없으면 새로 만들지 않고, 받은 Swagger 로 진행만 한다.
+4. Swagger 를 받을 수 없으면(인증 필요 등) 추측하지 말고 사용자에게 Swagger JSON 을 요청한다.
+
+### Swagger 화면 주소를 받았을 때
+
+사용자는 보통 브라우저로 보는 Swagger **화면** 주소(예: `https://api.example.com/api/docs`)를 준다.
+화면(HTML)으로는 코드를 만들 수 없으니 **JSON 스펙 주소**를 찾아 쓰고, `api.openapi` 에도 JSON 주소를 넣는다.
+`api.openapi` 에 화면 주소가 들어 있을 때도 같다. JSON 주소를 찾으면 그 값으로 바꿔 넣는다.
+
+```bash
+curl -s -o /dev/null -w '%{content_type}\n' "<받은 주소>"   # text/html 이면 화면 주소
+```
+
+아래 순서로 JSON 주소를 찾는다. 응답이 `application/json` 이고 최상위에 `openapi`(또는 `swagger`) 필드가 있으면 맞다.
+
+1. 화면 주소 뒤에 `-json` — NestJS 기본 (`/api/docs` → `/api/docs-json`)
+2. 화면 HTML 이 불러오는 설정 스크립트(`swagger-initializer.js`, `swagger-ui-init.js` 등)를 열어
+   스펙 주소를 찾는다. `url` · `urls` 값이나, 그 값을 담은 변수를 본다.
+3. 프레임워크 기본 경로 — Spring(springdoc) `/v3/api-docs`, FastAPI `/openapi.json`
+4. 그래도 못 찾으면 사용자에게 JSON 주소를 묻는다.
+
+> `swagger: "2.0"` 스펙이면 스키마는 `components.schemas` 가 아니라 `definitions` 아래에 있다.
+
+### 스펙 읽기
+
+스펙 전체를 읽지 않는다. 앱 루트(`bc.config.json` 이 있는 폴더)의 `scripts/openapi.mjs` 로
+필요한 경로와, 그 경로가 참조하는 스키마(참조의 참조까지)만 꺼내 본다. 의존성 없이 Node 만으로 돈다.
+
+```bash
+node scripts/openapi.mjs show /api/user      # /api/user 와 /api/user/... 경로 전부 + 참조 스키마
+```
+
+- 사용자가 따로 준 Swagger 를 볼 때는 `--spec <URL 또는 파일>` 을 붙인다.
+- 별도 타입 생성 도구(openapi-typescript 등)는 쓰지 않는다. 타입은 zod 스키마에서 `z.infer` 로 추론한다. (§2-3)
+
+### 🔄 바뀐 API 확인 — 작업 전에 매번
+
+앱 루트의 `openapi.snapshot.json` 은 **마지막으로 코드에 반영한 스펙**이다. 버전도 그 안의 `info.version` 이다.
+
+1. 작업 전에 지금 스펙과 비교한다.
+
+   ```bash
+   node scripts/openapi.mjs diff
+   ```
+
+   ```
+   버전: v0.32 → v0.33
+
+   변경  /api/me/account
+         참조 schemas/AccountAddressResponse 바뀜
+   변경  /api/notifications
+         + get.parameters[] {"name":"sort","in":"query",...}
+   삭제  /api/admin/admins
+
+   바뀐 참조
+     schemas/AccountAddressResponse
+         + properties.road.nullable: true
+         + properties.zipCode: {"type":"string"}
+         + required[] zipCode
+   ```
+
+2. `바뀐 것 없음` 이면 그대로 진행한다.
+3. 바뀐 경로가 있으면 API 루트에서 그 경로를 쓰는 리소스를 찾는다. (`RESOURCE` · 경로 문자열로 검색)
+   `description` · `summary` 만 바뀐 것은 코드에 영향이 없으니 넘어간다.
+4. 사용자에게 알린다 — 버전, 바뀐 경로, 영향 받는 리소스와 고칠 내용.
+   요청받은 작업은 최신 스펙으로 하고, 나머지 리소스는 지금 고칠지 묻는다.
+5. 스냅샷을 저장한다.
+   - 영향 받은 리소스를 다 고쳤거나, 사용자가 넘어가라고 하면 저장한다.
+
+     ```bash
+     node scripts/openapi.mjs save
+     ```
+
+   - 나중에 고치기로 했으면 저장하지 않는다. 다음 작업 때 다시 알린다.
+     (이번에 이미 반영한 경로도 다시 나온다. 코드가 스펙과 맞으면 넘어간다.)
+
+- 스냅샷이 없으면(처음) 비교 없이 진행하고, 작업이 끝나면 `save` 한다.
+- `openapi.snapshot.json` 은 커밋한다. 키를 정렬해 저장하므로 PR diff 에 바뀐 줄만 보인다.
+- 사용자가 `api.openapi` 와 다른 Swagger 를 줘서 작업할 때는 비교 · 저장하지 않는다.
 
 ---
 
@@ -34,16 +125,19 @@ src/api/
 ├── instance.ts               # React: axios 인스턴스
 ├── index.ts                  # 모든 API 모듈 export
 └── user/                     # 리소스 폴더 (소문자)
-    ├── user.api.ts           # React: axios / Next.js: Server fetch 호출
-    ├── user.api.client.ts    # Next.js: Client 호출이 필요할 때만 생성
+    ├── user.api.ts           # React: axios 호출 / Next.js: Client 호출이 필요할 때만 생성
+    ├── user.server.ts        # Next.js: Server 전용 호출 (server-only + serverAuthHttp)
     ├── user.zod.ts           # 응답/요청 zod 스키마
     ├── user.type.ts          # zod 로부터 추론한 타입 + 입력 타입
     ├── user.service.ts       # react-query 훅 (use~) — 비즈니스 로직
     └── index.ts              # 외부 노출 (service, type 만)
 ```
 
-- 파일 prefix 는 폴더명과 같다 (`user/` → `user.api.ts`, `user.zod.ts` ...).
-- `RESOURCE` 상수는 `/api/<path>` 형태로 `.api.ts` 상단에 둔다.
+- 파일 prefix 는 폴더명과 같은 **소문자**다 (`user/` → `user.api.ts`, `favorite-stores/` → `favorite-stores.api.ts`).
+  `User.api.ts` 처럼 대문자로 쓰지 않는다.
+- 파일 종류는 `api` · `zod` · `type` · `service` · `server`(Next.js 서버 전용)다.
+  응답을 화면 모양으로 바꾸는 `user.mapper.ts` 같은 보조 파일이 필요하면 둬도 된다.
+- `RESOURCE` 상수는 `/api/<path>` 형태로 `.api.ts` · `.server.ts` 상단에 둔다.
 
 ---
 
@@ -76,15 +170,15 @@ export * from './clientAuthHttp';
 // 금지: export * from './serverAuthHttp';
 ```
 
-`serverAuthHttp`와 Server API는 barrel을 거치지 않고 절대경로로 직접 import한다.
+`serverAuthHttp`와 Server API(`*.server.ts`)는 barrel을 거치지 않고 절대경로로 직접 import한다.
 
 ```ts
 import { serverAuthHttp } from '@/api/http/serverAuthHttp';
 ```
 
 - Server 파일은 가능하면 `import 'server-only';`로 경계를 표시한다.
-- 인증 호출은 Server를 기본으로 하고 Client에서도 호출해야 할 때만 `*.client.ts`를 만든다.
-- Client service는 Client 호출 파일만 import하며 Server 파일을 간접 참조하지 않는다.
+- 인증 호출은 Server(`*.server.ts`)를 기본으로 하고 Client에서도 호출해야 할 때만 `*.api.ts`를 만든다.
+- Client service는 Client 호출 파일(`*.api.ts`)만 import하며 Server 파일(`*.server.ts`)을 간접 참조하지 않는다.
 - `useQuery`/`useMutation`을 export하는 service는 Client 전용이다.
 - type과 zod schema만 Server/Client가 공유한다.
 
@@ -131,11 +225,11 @@ import { serverAuthHttp } from '@/api/http/serverAuthHttp';
 
 ## 2. 각 파일 작성 규칙
 
-### 2-1. `user.api.ts` — 순수 호출 함수
+### 2-1. `user.api.ts` · `user.server.ts` — 순수 호출 함수
 
-- React는 `baseInstance`(axios)를 사용한다.
-- Next.js는 Server 파일에서 기존 `serverAuthHttp`를 절대경로로 import한다. Client 호출이 필요할 때만
-  `*.client.ts`를 만들고 기존 `clientAuthHttp`를 사용한다. wrapper가 없으면 자동 생성하지 않는다.
+- React는 `user.api.ts`에서 `baseInstance`(axios)를 사용한다.
+- Next.js는 Server 호출을 `user.server.ts`에 두고, 기존 `serverAuthHttp`를 절대경로로 import한다.
+  Client 호출이 필요할 때만 `user.api.ts`를 만들고 기존 `clientAuthHttp`를 사용한다. wrapper가 없으면 자동 생성하지 않는다.
 - React는 `const { data } = await baseInstance.X(...)` 후 `data`를 반환한다.
 - Next.js는 fetch wrapper의 generic에 응답 타입을 전달하고 JSON data를 반환받는다.
 - 쿼리스트링은 기존 wrapper 규칙(axios의 `{ params }`, fetch wrapper의 `searchParams` 등)을 따른다.
@@ -168,7 +262,9 @@ export const deleteUser = async (userId: string) => {
 ```
 
 ```ts
-// Next.js Server
+// Next.js Server — user.server.ts
+import 'server-only';
+
 import { serverAuthHttp } from '@/api/http/serverAuthHttp';
 import type { UserItem } from './user.type';
 
@@ -286,7 +382,7 @@ export const useDeleteUser = () => {
 ### 2-5. `index.ts` (리소스) — 노출
 
 - **`service` 와 `type` 만** 재노출 (`api`, `zod` 는 노출하지 않음).
-- Next.js에서는 Server 호출 파일을 Client가 접근 가능한 barrel에서 재노출하지 않는다.
+- Next.js에서는 Server 호출 파일(`*.server.ts`)을 Client가 접근 가능한 barrel에서 재노출하지 않는다.
 
 ```ts
 export * from './user.service';
@@ -437,7 +533,8 @@ export const useGetUser = (options?: Record<string, any>) => {
 
 ## 6. 네이밍 & 스타일 요약
 
-- 폴더: 소문자 / kebab-case (`user`, `favorite-stores`). 파일 prefix = 폴더명.
+- 폴더: 소문자 / kebab-case (`user`, `favorite-stores`). 파일 prefix = 폴더명 그대로(소문자).
+- 파일 종류: `api` · `zod` · `type` · `service` · `server`(Next.js 서버 전용). 보조 파일(`mapper` 등)은 필요하면 추가.
 - 함수: 동사 + 리소스 (`getUserList`, `createUser`, `updateUser`).
 - 훅: `use` + 함수 의미 (`useGetUserList`, `useCreateUser`).
 - `RESOURCE` 상수로 baseURL 경로 관리, 동적 경로는 템플릿 리터럴.
@@ -451,7 +548,7 @@ export const useGetUser = (options?: Record<string, any>) => {
 
 1. [ ] 위치를 맞췄다 (`src/api`).
 2. [ ] 엔드포인트가 **next(무한스크롤)** 인지 판단했다. (§1)
-3. [ ] `api / zod / type / service / index` 5파일을 모두 만들었다.
+3. [ ] React는 `api / zod / type / service / index`, Next.js는 `server`(+ 필요하면 `api`) `/ zod / type / service / index`를 만들었다.
 4. [ ] Swagger 응답을 zod 로 정확히 매핑(nullable/optional/enum/date/$ref).
 5. [ ] 타입은 `z.infer` 로 추론.
 6. [ ] 조회 훅 queryFn 에서 `safeParse` 후 실패 시 원본 반환.

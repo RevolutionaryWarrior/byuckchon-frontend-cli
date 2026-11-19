@@ -2,6 +2,7 @@ import fs from "fs/promises";
 import path from "path";
 
 import { readSettingsAsset, readSettingsJson } from "../utils/settingsAssets.js";
+import { apiRootForFramework } from "./apiConventionDoc.js";
 
 async function write(filePath, content) {
   await fs.writeFile(filePath, content, "utf-8");
@@ -169,6 +170,15 @@ src/assets     이미지·아이콘
 }
 
 경로 별칭은 \`@/\` 를 씁니다. (\`@/lib/utils/cn\`)
+
+## 7. API 코드는 api-codegen.md 를 따른다
+
+API 호출 · zod 스키마 · react-query 훅을 만들 때는 **먼저 \`${apiRootForFramework(framework)}/api-codegen.md\` 를 읽고** 그 규칙대로 만드세요.
+
+- Swagger 는 \`bc.config.json\` 의 \`api.openapi\` 에서 가져옵니다.
+- 비어 있으면 사용자에게 Swagger URL 을 묻고, 받은 값을 \`api.openapi\` 에 채운 뒤 진행하세요.
+- 작업 전에 앱 루트(\`bc.config.json\` 이 있는 폴더)에서 \`node scripts/openapi.mjs diff\` 로 바뀐 API 를 확인하고,
+  바뀐 게 있으면 사용자에게 알리세요.
 `;
 }
 
