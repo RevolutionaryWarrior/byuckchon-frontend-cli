@@ -35,6 +35,25 @@
    - `bc.config.json` 이 없으면 새로 만들지 않고, 받은 Swagger 로 진행만 한다.
 4. Swagger 를 받을 수 없으면(인증 필요 등) 추측하지 말고 사용자에게 Swagger JSON 을 요청한다.
 
+### Swagger 화면 주소를 받았을 때
+
+사용자는 보통 브라우저로 보는 Swagger **화면** 주소(예: `https://api.example.com/api/docs`)를 준다.
+화면(HTML)으로는 코드를 만들 수 없으니 **JSON 스펙 주소**를 찾아 쓰고, `api.openapi` 에도 JSON 주소를 넣는다.
+
+```bash
+curl -s -o /dev/null -w '%{content_type}\n' "<받은 주소>"   # text/html 이면 화면 주소
+```
+
+아래 순서로 JSON 주소를 찾는다. 응답이 `application/json` 이고 최상위에 `openapi`(또는 `swagger`) 필드가 있으면 맞다.
+
+1. 화면 주소 뒤에 `-json` — NestJS 기본 (`/api/docs` → `/api/docs-json`)
+2. 화면 HTML 이 불러오는 설정 스크립트(`swagger-initializer.js`, `swagger-ui-init.js` 등)를 열어
+   스펙 주소를 찾는다. `url` · `urls` 값이나, 그 값을 담은 변수를 본다.
+3. 프레임워크 기본 경로 — Spring(springdoc) `/v3/api-docs`, FastAPI `/openapi.json`
+4. 그래도 못 찾으면 사용자에게 JSON 주소를 묻는다.
+
+> `swagger: "2.0"` 스펙이면 스키마는 `components.schemas` 가 아니라 `definitions` 아래에 있다.
+
 - 스펙 전체를 한 번에 읽지 않는다. 파일로 받아 필요한 경로와, 그 경로가 `$ref` 로 참조하는
   `components.schemas` 만 추려 본다.
 

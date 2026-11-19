@@ -150,6 +150,7 @@ AI 에이전트(Claude 등)가 API 루트의 `api-codegen.md` 컨벤션에 따�
 
 예를 들어 "user API 만들어줘"라고 요청하면, Swagger 에서 해당 경로와 참조 스키마만 추려 코드를 만듭니다.
 `api.openapi` 가 비어 있으면 AI 가 처음 한 번 Swagger URL 을 물어보고 `bc.config.json` 에 채웁니다.
+Swagger 화면 주소(예: `/api/docs`)를 알려줘도 AI 가 JSON 스펙 주소(예: `/api/docs-json`)를 찾아 넣습니다.
 타입은 zod 스키마에서 `z.infer` 로 추론하므로 별도 타입 생성 단계는 없습니다.
 
 ### 디자인 토큰 빌드
