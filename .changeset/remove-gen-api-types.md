@@ -2,11 +2,10 @@
 "byuckchon-frontend-cli": major
 ---
 
-`bc gen api-types` 를 제거했습니다.
+`bc gen api-types`를 없앴습니다. 이제 AI가 Swagger를 직접 읽고 `api-codegen.md`대로 API 코드를 만듭니다.
 
-- API 코드는 AI 가 Swagger 를 직접 읽고 `api-codegen.md` 컨벤션대로 만듭니다. 타입은 zod 스키마에서 `z.infer` 로 추론하므로,
-  openapi-typescript 로 만들던 `types.gen.ts` 는 컨벤션에서 쓰이지 않았습니다.
-- `api-codegen.md` 에 Swagger 가져오는 순서를 추가했습니다. (사용자 제공 → `bc.config.json` 의 `api.openapi` → 사용자에게 요청,
-  큰 스펙은 필요한 경로와 참조 스키마만 추려 보기)
-- `bc.config.json` 의 `api.openapi` 는 그대로 두고, `bc adopt` 도 계속 Swagger URL 을 묻습니다.
-- 의존성 제거: `openapi-typescript` (함께 설치되던 `@redocly/*` 포함)
+- 타입은 zod 스키마에서 `z.infer`로 만듭니다. `types.gen.ts`는 더 이상 만들지 않습니다.
+- Swagger는 `bc.config.json`의 `api.openapi`에서 가져옵니다.
+  - 비어 있으면 AI가 물어보고 채웁니다. 다음부터는 묻지 않습니다.
+- 생성되는 `AGENTS.md`에 "API 코드는 `api-codegen.md`를 먼저 읽는다"를 추가했습니다.
+- `openapi-typescript` 의존성을 뺐습니다. (`@redocly/*` 포함)

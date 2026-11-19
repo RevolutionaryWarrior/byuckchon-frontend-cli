@@ -20,7 +20,7 @@ const FRAMEWORK_CHOICES = [
 ];
 
 // OpenAPI URL 은 묻지 않는다. 생성 단계에서는 거의 쓰지 않아서,
-// 필요하면 bc.config.json 의 api.openapi 에 직접 넣거나 bc adopt 로 채운다.
+// AI 가 API 코드를 처음 만들 때 물어보고 bc.config.json 의 api.openapi 에 채운다. (api-codegen.md)
 
 /** 단일 프로젝트 vs 모노레포 선택. */
 export async function askProjectType() {

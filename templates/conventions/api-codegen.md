@@ -27,7 +27,13 @@
 
 1. 사용자가 Swagger JSON · URL · 엔드포인트를 주면 그것을 쓴다.
 2. 없으면 가장 가까운 `bc.config.json` 의 `api.openapi`(URL 또는 파일 경로)를 쓴다.
-3. 둘 다 없거나, 인증이 필요해 받을 수 없으면 추측하지 말고 사용자에게 Swagger 를 요청한다.
+3. `api.openapi` 가 비어 있으면(`null`) 사용자에게 Swagger URL 을 묻는다.
+   받은 URL 은 그 `bc.config.json` 의 `api.openapi` 에 채운 뒤 진행한다. 다음부터는 묻지 않는다.
+   - 1번에서 사용자가 URL 을 줬는데 `api.openapi` 가 비어 있으면 그 URL 도 채운다.
+   - 붙여 넣은 JSON 처럼 주소가 아닌 것은 채우지 않는다.
+   - `bc.config.json` 은 팀이 같이 쓰는 파일이다. 토큰이 붙은 URL 같은 비밀값은 넣지 않는다.
+   - `bc.config.json` 이 없으면 새로 만들지 않고, 받은 Swagger 로 진행만 한다.
+4. Swagger 를 받을 수 없으면(인증 필요 등) 추측하지 말고 사용자에게 Swagger JSON 을 요청한다.
 
 - 스펙 전체를 한 번에 읽지 않는다. 파일로 받아 필요한 경로와, 그 경로가 `$ref` 로 참조하는
   `components.schemas` 만 추려 본다.
