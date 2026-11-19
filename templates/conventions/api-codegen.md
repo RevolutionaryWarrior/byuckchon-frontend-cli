@@ -55,16 +55,62 @@ curl -s -o /dev/null -w '%{content_type}\n' "<받은 주소>"   # text/html 이�
 
 > `swagger: "2.0"` 스펙이면 스키마는 `components.schemas` 가 아니라 `definitions` 아래에 있다.
 
-- 스펙 전체를 한 번에 읽지 않는다. 파일로 받아 필요한 경로와, 그 경로가 `$ref` 로 참조하는
-  `components.schemas` 만 추려 본다.
+### 스펙 읽기
 
-  ```bash
-  curl -s "<api.openapi>" -o /tmp/openapi.json
-  jq '.paths["/api/user"]' /tmp/openapi.json
-  jq '.components.schemas.UserItem' /tmp/openapi.json
-  ```
+스펙 전체를 읽지 않는다. 앱 루트(`bc.config.json` 이 있는 폴더)의 `scripts/openapi.mjs` 로
+필요한 경로와, 그 경로가 참조하는 스키마(참조의 참조까지)만 꺼내 본다. 의존성 없이 Node 만으로 돈다.
 
+```bash
+node scripts/openapi.mjs show /api/user      # /api/user 와 /api/user/... 경로 전부 + 참조 스키마
+```
+
+- 사용자가 따로 준 Swagger 를 볼 때는 `--spec <URL 또는 파일>` 을 붙인다.
 - 별도 타입 생성 도구(openapi-typescript 등)는 쓰지 않는다. 타입은 zod 스키마에서 `z.infer` 로 추론한다. (§2-3)
+
+### 🔄 바뀐 API 확인 — 작업 전에 매번
+
+앱 루트의 `openapi.snapshot.json` 은 **마지막으로 코드에 반영한 스펙**이다. 버전도 그 안의 `info.version` 이다.
+
+1. 작업 전에 지금 스펙과 비교한다.
+
+   ```bash
+   node scripts/openapi.mjs diff
+   ```
+
+   ```
+   버전: v0.32 → v0.33
+
+   변경  /api/me/account
+         참조 schemas/AccountAddressResponse 바뀜
+   변경  /api/notifications
+         + get.parameters[] {"name":"sort","in":"query",...}
+   삭제  /api/admin/admins
+
+   바뀐 참조
+     schemas/AccountAddressResponse
+         + properties.road.nullable: true
+         + properties.zipCode: {"type":"string"}
+         + required[] zipCode
+   ```
+
+2. `바뀐 것 없음` 이면 그대로 진행한다.
+3. 바뀐 경로가 있으면 API 루트에서 그 경로를 쓰는 리소스를 찾는다. (`RESOURCE` · 경로 문자열로 검색)
+   `description` · `summary` 만 바뀐 것은 코드에 영향이 없으니 넘어간다.
+4. 사용자에게 알린다 — 버전, 바뀐 경로, 영향 받는 리소스와 고칠 내용.
+   요청받은 작업은 최신 스펙으로 하고, 나머지 리소스는 지금 고칠지 묻는다.
+5. 스냅샷을 저장한다.
+   - 영향 받은 리소스를 다 고쳤거나, 사용자가 넘어가라고 하면 저장한다.
+
+     ```bash
+     node scripts/openapi.mjs save
+     ```
+
+   - 나중에 고치기로 했으면 저장하지 않는다. 다음 작업 때 다시 알린다.
+     (이번에 이미 반영한 경로도 다시 나온다. 코드가 스펙과 맞으면 넘어간다.)
+
+- 스냅샷이 없으면(처음) 비교 없이 진행하고, 작업이 끝나면 `save` 한다.
+- `openapi.snapshot.json` 은 커밋한다. 키를 정렬해 저장하므로 PR diff 에 바뀐 줄만 보인다.
+- 사용자가 `api.openapi` 와 다른 Swagger 를 줘서 작업할 때는 비교 · 저장하지 않는다.
 
 ---
 

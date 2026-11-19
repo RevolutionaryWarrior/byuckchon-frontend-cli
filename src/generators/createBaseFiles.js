@@ -177,6 +177,8 @@ API 호출 · zod 스키마 · react-query 훅을 만들 때는 **먼저 \`${api
 
 - Swagger 는 \`bc.config.json\` 의 \`api.openapi\` 에서 가져옵니다.
 - 비어 있으면 사용자에게 Swagger URL 을 묻고, 받은 값을 \`api.openapi\` 에 채운 뒤 진행하세요.
+- 작업 전에 앱 루트(\`bc.config.json\` 이 있는 폴더)에서 \`node scripts/openapi.mjs diff\` 로 바뀐 API 를 확인하고,
+  바뀐 게 있으면 사용자에게 알리세요.
 `;
 }
 

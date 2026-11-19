@@ -153,6 +153,16 @@ AI 에이전트(Claude 등)가 API 루트의 `api-codegen.md` 컨벤션에 따�
 Swagger 화면 주소(예: `/api/docs`)를 알려줘도 AI 가 JSON 스펙 주소(예: `/api/docs-json`)를 찾아 넣습니다.
 타입은 zod 스키마에서 `z.infer` 로 추론하므로 별도 타입 생성 단계는 없습니다.
 
+백엔드 스펙이 바뀌면 AI 가 작업 전에 알려줍니다. 앱 루트의 `scripts/openapi.mjs` 가
+마지막으로 반영한 스펙(`openapi.snapshot.json`)과 지금 스펙을 비교해, 바뀐 경로와 필드만 뽑아 줍니다.
+(의존성 없음, Node 18+)
+
+```bash
+node scripts/openapi.mjs diff            # 바뀐 경로 · 필드
+node scripts/openapi.mjs show /api/user  # 그 경로 + 참조 스키마만
+node scripts/openapi.mjs save            # 지금 스펙을 스냅샷으로 저장
+```
+
 ### 디자인 토큰 빌드
 
 `bc init`으로 생성한 프로젝트에는 토큰 변환 설정이 함께 들어갑니다.
