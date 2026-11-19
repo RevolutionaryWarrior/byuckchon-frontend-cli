@@ -2,6 +2,8 @@ import fs from "fs/promises";
 import path from "path";
 
 import { readSettingsAsset, readSettingsJson } from "../utils/settingsAssets.js";
+import { createElectronFiles } from "./electronFiles.js";
+import { ELECTRON_OUTPUT_DIRS, isElectron, isViteReact } from "./framework.js";
 
 async function write(filePath, content) {
   await fs.writeFile(filePath, content, "utf-8");
@@ -16,7 +18,7 @@ async function write(filePath, content) {
  * 매 세션 컨텍스트에 실리므로 짧게 유지한다. 상세 API 는 각 패키지 README 로 넘긴다.
  */
 export function agentsDoc(framework) {
-  const isReact = framework === "react";
+  const isReact = isViteReact(framework);
 
   return `# 작업 규칙
 
@@ -155,8 +157,24 @@ src/assets     이미지·아이콘
 }
 
 경로 별칭은 \`@/\` 를 씁니다. (\`@/lib/utils/cn\`)
-`;
+${isElectron(framework) ? ELECTRON_AGENTS : ""}`;
 }
+
+const ELECTRON_AGENTS = `
+### Electron
+
+\`\`\`
+electron/main.ts      메인 프로세스 (창 · 파일 시스템 · OS 기능)
+electron/preload.ts   렌더러에 노출할 API (contextBridge)
+src/                  렌더러 = 위 React 구조 그대로
+\`\`\`
+
+- 렌더러(\`src/\`)에서 Node · Electron API 를 직접 쓰지 않는다.
+  main 에 \`ipcMain.handle\` 로 만들고, preload 에서 \`contextBridge\` 로 노출해 \`window.electron\` 으로 부른다.
+- preload 에 API 를 추가하면 \`src/global.d.ts\` 의 \`Window['electron']\` 타입도 같이 고친다.
+- 빌드한 화면은 \`file://\` 로 열린다. 라우터는 \`createHashRouter\` 를 쓴다.
+- \`dev\` 스크립트 하나로 Vite 와 Electron 이 같이 뜬다. 설치 파일은 \`package\` 스크립트로 만든다. (release/)
+`;
 
 // ─── 공통 설정 파일 ────────────────────────────────────────────────────────────
 
@@ -173,7 +191,25 @@ export default byuckchon;
   );
 }
 
-async function createEslintConfig(rootDir) {
+async function createEslintConfig(rootDir, { electron = false } = {}) {
+  if (electron) {
+    await write(
+      path.join(rootDir, "eslint.config.js"),
+      `import byuckchon from '@byuckchon-frontend/settings/eslint/react';
+
+/**
+ * 규칙 본체는 @byuckchon-frontend/settings 가 관리합니다.
+ * 프로젝트 예외는 뒤에 이어붙이세요.
+ */
+export default [
+  ...byuckchon,
+  // Electron 빌드 결과 · 설치 파일
+  { ignores: [${ELECTRON_OUTPUT_DIRS.map((d) => `'${d}/**'`).join(", ")}] },
+];
+`
+    );
+    return;
+  }
   await write(
     path.join(rootDir, "eslint.config.js"),
     `import byuckchon from '@byuckchon-frontend/settings/eslint/react';
@@ -250,9 +286,16 @@ dist-ssr/
 out/
 `;
 
+  const electronExtra = `
+# Electron
+${ELECTRON_OUTPUT_DIRS.map((d) => `${d}/`).join("\n")}
+`;
+
   await write(
     path.join(rootDir, ".gitignore"),
-    base + (framework === "next" ? nextExtra : "")
+    base +
+      (framework === "next" ? nextExtra : "") +
+      (isElectron(framework) ? electronExtra : "")
   );
 }
 
@@ -294,24 +337,31 @@ async function createReactBaseFiles(rootDir, config) {
     `User-agent: *\nDisallow: /\n`
   );
 
+  const electron = isElectron(config.framework);
+
   // vite.config.ts
   await write(
     path.join(rootDir, "vite.config.ts"),
     `import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
-import svgr from 'vite-plugin-svgr';
+${electron ? "import electron from 'vite-plugin-electron/simple';\n" : ""}import svgr from 'vite-plugin-svgr';
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [
+${electron ? "  // 빌드한 index.html 을 file:// 로 연다. 에셋 경로가 상대 경로여야 열린다.\n  base: './',\n" : ""}  plugins: [
     react(),
     tailwindcss(),
     svgr({
       svgrOptions: {
         icon: true,
       },
-    }),
+    }),${electron ? `
+    // electron/ 을 dist-electron/ 으로 빌드하고, dev 에서는 Electron 을 띄운다.
+    electron({
+      main: { entry: 'electron/main.ts' },
+      preload: { input: 'electron/preload.ts' },
+    }),` : ""}
   ],
   resolve: {
     alias: {
@@ -370,7 +420,7 @@ export default defineConfig({
           module: "ESNext",
           moduleResolution: "Bundler",
         },
-        include: ["vite.config.ts"],
+        include: electron ? ["vite.config.ts", "electron"] : ["vite.config.ts"],
       },
       null,
       2
@@ -378,11 +428,11 @@ export default defineConfig({
   );
 
   await write(path.join(rootDir, ".nvmrc"), await readSettingsAsset("project/nvmrc"));
-  await write(path.join(rootDir, "AGENTS.md"), agentsDoc("react"));
+  await write(path.join(rootDir, "AGENTS.md"), agentsDoc(config.framework));
 
   await createPrettierConfig(rootDir);
-  await createEslintConfig(rootDir);
-  await createGitignore(rootDir, "react");
+  await createEslintConfig(rootDir, { electron });
+  await createGitignore(rootDir, config.framework);
   await createVscodeSettings(rootDir);
 
   // src/App.css
@@ -445,6 +495,13 @@ function App() {
 export default App;
 `
   );
+
+  if (electron) {
+    await createElectronFiles(rootDir, {
+      name: config.projectName,
+      scope: config.scope,
+    });
+  }
 }
 
 // ─── Next.js (App Router) ─────────────────────────────────────────────────────
@@ -604,7 +661,7 @@ export default function Error() {
 // ─── 진입점 ───────────────────────────────────────────────────────────────────
 
 export async function createBaseFiles(rootDir, config) {
-  if (config.framework === "react") {
+  if (isViteReact(config.framework)) {
     await createReactBaseFiles(rootDir, config);
   } else if (config.framework === "next") {
     await createNextBaseFiles(rootDir, config);

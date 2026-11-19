@@ -1,6 +1,8 @@
 import fs from 'fs/promises';
 import path from 'path';
 
+import { isViteReact } from './framework.js';
+
 /**
  * React 폴더 구조
  * lib → store → api → hooks → context → components → layouts → pages
@@ -84,8 +86,7 @@ async function writeFile(filePath, content) {
 }
 
 export async function createFolders(rootDir, config) {
-  const folders =
-    config.framework === 'react' ? REACT_FOLDERS : NEXT_FOLDERS;
+  const folders = isViteReact(config.framework) ? REACT_FOLDERS : NEXT_FOLDERS;
 
   for (const folder of folders) {
     await fs.mkdir(path.join(rootDir, folder), { recursive: true });
@@ -121,7 +122,7 @@ export { cn } from '@byuckchon-frontend/utils';
   await writeFile(path.join(rootDir, 'src/hooks/index.ts'), '// 커스텀 훅\n');
   await writeFile(path.join(rootDir, 'src/components/index.ts'), '// 재사용 가능한 UI 컴포넌트\n');
 
-  if (config.framework === 'react') {
+  if (isViteReact(config.framework)) {
     await writeFile(path.join(rootDir, 'src/store/index.ts'), '// Zustand 스토어\n');
     await writeFile(path.join(rootDir, 'src/api/index.ts'), '// Axios API 호출\n');
     await writeFile(path.join(rootDir, 'src/context/index.tsx'), '// React Context\n');
