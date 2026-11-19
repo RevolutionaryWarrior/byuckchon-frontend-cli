@@ -5,6 +5,8 @@ import chalk from 'chalk';
 
 import { askAddQuestions } from '../prompts/initPrompts.js';
 import { createApp } from '../generators/createApp.js';
+import { prepareRootForElectron } from '../generators/createMonorepo.js';
+import { isElectron } from '../generators/framework.js';
 import { installMonorepoDeps } from '../generators/install.js';
 import { prepareVersionMatrix } from '../utils/latestSettings.js';
 import {
@@ -16,7 +18,7 @@ import {
 /**
  * `bc add`
  *
- * 기존 pnpm 모노레포에 React/Next 앱을 하나 추가한다.
+ * 기존 pnpm 모노레포에 React · Next · Electron 앱을 하나 추가한다.
  * (현재 위치에서 위로 올라가며 pnpm-workspace.yaml 을 찾는다.)
  */
 export async function addCommand() {
@@ -59,6 +61,7 @@ export async function addCommand() {
 
   await createApp({ appDir, config, scope });
   await addRootDevScript(root, answers.appName, appPkgName);
+  if (isElectron(answers.framework)) await prepareRootForElectron(root);
   await installMonorepoDeps({ root, appPkgName, formatDir: `apps/${answers.appName}` });
 
   console.log(chalk.bold.green(`\n  ✓ ${appPkgName} 앱을 추가했습니다!\n`));

@@ -2,20 +2,37 @@ import fs from 'fs/promises';
 import path from 'path';
 
 import { versions } from '../constants/versions.js';
+import { isElectron, isViteReact } from './framework.js';
 
 export async function createPackageJson(rootDir, config) {
-  const isReact = config.framework === 'react';
+  const isReact = isViteReact(config.framework);
+  const electron = isElectron(config.framework);
 
   const pkg = {
     name: config.projectName,
     version: '0.0.1',
     private: true,
     type: 'module',
-    scripts: isReact
+    // Electron 메인 프로세스 진입점. vite-plugin-electron 이 electron/main.ts 를 여기로 빌드한다.
+    ...(electron ? { main: 'dist-electron/main.js' } : {}),
+    scripts: electron
+      ? {
+          // vite 하나로 렌더러 dev 서버와 Electron 이 같이 뜬다.
+          dev: 'vite',
+          build: 'tsc -b && vite build',
+          // 설치 파일(dmg · exe · AppImage)을 release/ 에 만든다.
+          package: 'npm run build && electron-builder',
+          typecheck: 'tsc -b',
+          lint: 'eslint . --ext ts,tsx',
+          format:
+            'prettier --write "src/**/*.{ts,tsx,css}" "electron/**/*.ts" "tools/**/*.{js,cjs,mjs,json,md}" --no-error-on-unmatched-pattern',
+          'format:check':
+            'prettier --check "src/**/*.{ts,tsx,css}" "electron/**/*.ts" "tools/**/*.{js,cjs,mjs,json,md}" --no-error-on-unmatched-pattern',
+        }
+      : isReact
       ? {
           dev: 'vite',
           build: 'tsc -b && vite build',
-          'tokens:build': 'style-dictionary build --config token.config.js',
           // PR Check workflow 가 lint / typecheck / build 를 각각 호출한다.
           typecheck: 'tsc -b',
           lint: 'eslint . --ext ts,tsx',
@@ -28,7 +45,6 @@ export async function createPackageJson(rootDir, config) {
       : {
           dev: 'next dev',
           build: 'next build',
-          'tokens:build': 'style-dictionary build --config token.config.js',
           typecheck: 'tsc --noEmit',
           start: 'next start',
           lint: 'eslint .',
@@ -59,13 +75,12 @@ export async function createPackageJson(rootDir, config) {
       '@types/node': versions['@types/node'],
       '@trivago/prettier-plugin-sort-imports':
         versions['@trivago/prettier-plugin-sort-imports'],
-      // eslint/prettier/tsconfig/tokens 설정과 motion CSS 가 모두 이 패키지를 참조한다.
+      // eslint/prettier/tsconfig 설정과 motion CSS 가 모두 이 패키지를 참조한다.
       // (ESLint 플러그인도 이 패키지가 의존성으로 들고 온다)
       '@byuckchon-frontend/settings': versions['@byuckchon-frontend/settings'],
       eslint: versions.eslint,
       prettier: versions.prettier,
       'prettier-plugin-tailwindcss': versions['prettier-plugin-tailwindcss'],
-      'style-dictionary': versions['style-dictionary'],
       tailwindcss: versions.tailwindcss,
       typescript: versions.typescript,
       ...(isReact
@@ -74,6 +89,13 @@ export async function createPackageJson(rootDir, config) {
             '@vitejs/plugin-react': versions['@vitejs/plugin-react'],
             vite: versions.vite,
             'vite-plugin-svgr': versions['vite-plugin-svgr'],
+            ...(electron
+              ? {
+                  electron: versions.electron,
+                  'electron-builder': versions['electron-builder'],
+                  'vite-plugin-electron': versions['vite-plugin-electron'],
+                }
+              : {}),
           }
         : {
             '@tailwindcss/postcss': versions['@tailwindcss/postcss'],

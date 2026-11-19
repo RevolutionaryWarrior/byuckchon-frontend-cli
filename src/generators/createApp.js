@@ -6,9 +6,10 @@ import { createFolders } from './createFolders.js';
 import { createBaseFiles } from './createBaseFiles.js';
 import { createBcConfig } from './createBcConfig.js';
 import { scaffoldApiConventionDoc } from './apiConventionDoc.js';
+import { ELECTRON_OUTPUT_DIRS, isElectron, isViteReact } from './framework.js';
 
 /**
- * 모노레포(pnpm workspace) 안의 apps/<name> 으로 React/Next 앱을 하나 만든다.
+ * 모노레포(pnpm workspace) 안의 apps/<name> 으로 React · Next · Electron 앱을 하나 만든다.
  *
  * 단일 프로젝트용 createProject 와 달리:
  *  - package.json name 이 `@<scope>/<app>` 로 스코프됨
@@ -26,7 +27,8 @@ export async function createApp({ appDir, config, scope }) {
   await fs.mkdir(appDir, { recursive: true });
 
   await createFolders(appDir, config);
-  await createBaseFiles(appDir, config);
+  // Electron 의 appId(com.<scope>.<app>)에 scope 를 쓴다.
+  await createBaseFiles(appDir, { ...config, scope });
   await scaffoldApiConventionDoc({
     projectRoot: appDir,
     framework: config.framework,
@@ -50,17 +52,28 @@ async function rm(target) {
  * 단일 프로젝트와 동일하게 Vite React는 React 18, Next는 React 19를 사용한다.
  */
 async function createAppPackageJson(appDir, config, scope) {
-  const isReact = config.framework === 'react';
+  const isReact = isViteReact(config.framework);
+  const electron = isElectron(config.framework);
   const name = `@${scope}/${config.projectName}`;
 
-  const scripts = isReact
+  const scripts = electron
+    ? {
+        // vite 하나로 렌더러 dev 서버와 Electron 이 같이 뜬다.
+        dev: 'vite',
+        build: 'vite build',
+        // 설치 파일(dmg · exe · AppImage)을 release/ 에 만든다.
+        package: 'pnpm build && electron-builder',
+        typecheck: 'tsc --noEmit',
+        lint: 'eslint .',
+        clean: `rm -rf dist ${ELECTRON_OUTPUT_DIRS.join(' ')} node_modules .turbo`,
+      }
+    : isReact
     ? {
         dev: 'vite',
         build: 'vite build',
         typecheck: 'tsc --noEmit',
         lint: 'eslint .',
         preview: 'vite preview',
-        'tokens:build': 'style-dictionary build --config token.config.js',
         clean: 'rm -rf dist node_modules .turbo',
       }
     : {
@@ -69,7 +82,6 @@ async function createAppPackageJson(appDir, config, scope) {
         start: 'next start',
         typecheck: 'tsc --noEmit',
         lint: 'eslint .',
-        'tokens:build': 'style-dictionary build --config token.config.js',
         clean: 'rm -rf .next node_modules .turbo',
       };
 
@@ -78,6 +90,8 @@ async function createAppPackageJson(appDir, config, scope) {
     version: '0.0.0',
     private: true,
     type: 'module',
+    // Electron 메인 프로세스 진입점. vite-plugin-electron 이 electron/main.ts 를 여기로 빌드한다.
+    ...(electron ? { main: 'dist-electron/main.js' } : {}),
     scripts,
     dependencies: {
       react: isReact ? versions.react : versions['next-react'],
@@ -100,7 +114,7 @@ async function createAppPackageJson(appDir, config, scope) {
     devDependencies: {
       [`@${scope}/config-eslint`]: 'workspace:*',
       [`@${scope}/config-typescript`]: 'workspace:*',
-      // global.d.ts, App.css(motion), token.config.js 가 직접 참조한다.
+      // global.d.ts, App.css(motion) 가 직접 참조한다.
       '@byuckchon-frontend/settings': versions['@byuckchon-frontend/settings'],
       '@types/react': versions['@types/react'],
       '@types/react-dom': versions['@types/react-dom'],
@@ -108,7 +122,6 @@ async function createAppPackageJson(appDir, config, scope) {
       eslint: versions.eslint,
       prettier: versions.prettier,
       'prettier-plugin-tailwindcss': versions['prettier-plugin-tailwindcss'],
-      'style-dictionary': versions['style-dictionary'],
       tailwindcss: versions.tailwindcss,
       typescript: versions.typescript,
       ...(isReact
@@ -117,6 +130,13 @@ async function createAppPackageJson(appDir, config, scope) {
             '@vitejs/plugin-react': versions['@vitejs/plugin-react'],
             vite: versions.vite,
             'vite-plugin-svgr': versions['vite-plugin-svgr'],
+            ...(electron
+              ? {
+                  electron: versions.electron,
+                  'electron-builder': versions['electron-builder'],
+                  'vite-plugin-electron': versions['vite-plugin-electron'],
+                }
+              : {}),
           }
         : {
             '@tailwindcss/postcss': versions['@tailwindcss/postcss'],
@@ -135,7 +155,8 @@ async function createAppPackageJson(appDir, config, scope) {
  * createBaseFiles 가 깔아둔 단일 프로젝트용 설정 파일을 모노레포 규칙으로 교체한다.
  */
 async function applyMonorepoConventions(appDir, config, scope) {
-  const isReact = config.framework === 'react';
+  const isReact = isViteReact(config.framework);
+  const electron = isElectron(config.framework);
 
   // 루트에서 관리하는 설정들은 앱 레벨에서 제거.
   await rm(path.join(appDir, 'eslint.config.js'));
@@ -149,9 +170,34 @@ async function applyMonorepoConventions(appDir, config, scope) {
   // 이 모노레포 전용 예외는 packages/config-eslint 에서 얹는다.
   await write(
     path.join(appDir, 'eslint.config.mjs'),
-    `export { default } from '@${scope}/config-eslint/${isReact ? 'react' : 'next'}';
+    electron
+      ? `import config from '@${scope}/config-eslint/react';
+
+export default [
+  ...config,
+  // Electron 빌드 결과 · 설치 파일
+  { ignores: [${ELECTRON_OUTPUT_DIRS.map((d) => `'${d}/**'`).join(', ')}] },
+];
+`
+      : `export { default } from '@${scope}/config-eslint/${isReact ? 'react' : 'next'}';
 `
   );
+
+  if (electron) {
+    // turbo 의 build 캐시에 dist-electron 도 담는다. (루트 turbo.json 의 outputs 에는 없다)
+    await write(
+      path.join(appDir, 'turbo.json'),
+      JSON.stringify(
+        {
+          $schema: 'https://turborepo.org/schema.json',
+          extends: ['//'],
+          tasks: { build: { outputs: ['dist/**', 'dist-electron/**'] } },
+        },
+        null,
+        2
+      ) + '\n'
+    );
+  }
 
   if (isReact) {
     // createBaseFiles 의 프로젝트 레퍼런스형 tsconfig 3종을 공유 프리셋 extends 로 교체.
@@ -173,7 +219,9 @@ async function applyMonorepoConventions(appDir, config, scope) {
               '@images/*': ['./src/assets/images/*'],
             },
           },
-          include: ['src', 'vite.config.ts'],
+          include: electron
+            ? ['src', 'electron', 'vite.config.ts']
+            : ['src', 'vite.config.ts'],
         },
         null,
         2

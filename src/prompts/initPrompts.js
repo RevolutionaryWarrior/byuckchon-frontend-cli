@@ -17,6 +17,7 @@ const SCOPE_RULE = (input) => {
 const FRAMEWORK_CHOICES = [
   { name: 'React  (Vite + TypeScript)', value: 'react' },
   { name: 'Next.js  (App Router + TypeScript)', value: 'next' },
+  { name: 'Electron  (Vite + React + TypeScript)', value: 'electron' },
 ];
 
 // OpenAPI URL 은 묻지 않는다. 생성 단계에서는 거의 쓰지 않아서,
@@ -30,7 +31,7 @@ export async function askProjectType() {
       name: 'projectType',
       message: '무엇을 생성할까요?',
       choices: [
-        { name: '단일 프로젝트  (React 또는 Next 하나)', value: 'single' },
+        { name: '단일 프로젝트  (React · Next · Electron 중 하나)', value: 'single' },
         {
           name: '모노레포  (pnpm + Turborepo, 앱 하나로 시작 · 이후 bc add 로 추가)',
           value: 'monorepo',
@@ -111,10 +112,7 @@ export async function askInitQuestions() {
       type: 'list',
       name: 'framework',
       message: '어떤 프레임워크를 사용할까요?',
-      choices: [
-        { name: 'React  (Vite + TypeScript)', value: 'react' },
-        { name: 'Next.js  (App Router + TypeScript)', value: 'next' },
-      ],
+      choices: FRAMEWORK_CHOICES,
     },
   ]);
 }

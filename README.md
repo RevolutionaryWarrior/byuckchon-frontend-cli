@@ -116,11 +116,26 @@ bc
 
 | 형태 | 생성 결과 | 적합한 경우 |
 | --- | --- | --- |
-| 단일 프로젝트 | React(Vite) 또는 Next.js(App Router)  | 하나의 웹 서비스를 빠르게 시작할 때 |
-| 모노레포 | pnpm + Turborepo 루트, `apps/`, `packages/` | 여러 웹 앱과 공용 패키지를 함께 관리할 때 |
+| 단일 프로젝트 | React(Vite) · Next.js(App Router) · Electron 중 하나 | 하나의 서비스를 빠르게 시작할 때 |
+| 모노레포 | pnpm + Turborepo 루트, `apps/`, `packages/` | 여러 앱과 공용 패키지를 함께 관리할 때 |
 
 생성 프로젝트에는 TypeScript, ESLint, Prettier, Tailwind, `bc.config.json`, API 코드 가이드가
-기본으로 포함됩니다.
+기본으로 포함됩니다. 모노레포에 앱을 더할 때(`bc add`)도 같은 세 가지 중에서 고릅니다.
+
+**Electron**은 React 템플릿에 데스크톱 앱 설정을 더한 것입니다.
+렌더러(`src/`)는 React와 같은 구조 · 규칙을 쓰고, `electron/`에 메인 프로세스와 preload가 들어갑니다.
+
+```text
+electron/main.ts        메인 프로세스 (창 · OS 기능)
+electron/preload.ts     렌더러에 노출할 API (contextBridge → window.electron)
+electron-builder.json   설치 파일 설정 (appId · 대상 OS)
+src/                    렌더러 = React 앱
+```
+
+- `dev`: Vite와 Electron이 같이 뜹니다. (vite-plugin-electron)
+- `build`: 렌더러는 `dist/`, 메인 · preload는 `dist-electron/`
+- `package`: 설치 파일을 `release/`에 만듭니다. (electron-builder)
+- Electron 실행 파일은 설치할 때가 아니라 처음 `dev`를 실행할 때 내려받습니다. (Electron 45부터)
 
 ```bash
 bc init
@@ -153,25 +168,6 @@ bc gen api-types --source ./openapi.yaml
 ```
 
 생성 기본 경로는 `src/api/types.gen.ts`이며, `--out` 옵션으로 바꿀 수 있습니다.
-
-### 디자인 토큰 빌드
-
-`bc init`으로 생성한 프로젝트에는 토큰 변환 설정이 함께 들어갑니다.
-
-```text
-token.config.js     # @byuckchon-frontend/settings/tokens 프리셋을 사용
-src/tokens.json     # 디자이너가 Figma(Tokens Studio)에서 export 한 파일을 여기에 덮어씀
-src/tokens.css      # 아래 명령으로 자동 생성 (직접 수정하지 않음)
-```
-
-```bash
-npm run tokens:build
-```
-
-color는 `@theme`의 `--color-*`로, typography는 `@utility text-*`로, motion 등 나머지 토큰은
-`:root` 변수로 출력됩니다. duration 값이 단위 없는 숫자면 `ms`가 자동으로 붙고, settings에 없는
-`--motion-*` 이름이 있으면 경고가 나옵니다. 변환 규칙은 `@byuckchon-frontend/settings`가
-관리하므로, 규칙이 바뀌면 패키지 버전만 올리면 기존 프로젝트에도 그대로 반영됩니다.
 
 ### ESLint Convention Review
 
