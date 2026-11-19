@@ -5,6 +5,8 @@ import { versions } from '../constants/versions.js';
 import { readSettingsAsset } from '../utils/settingsAssets.js';
 import { agentsDoc } from './createBaseFiles.js';
 import { createApp } from './createApp.js';
+
+export const SNAPSHOT_IGNORE = 'openapi.snapshot.json';
 import { scaffoldReviewAutomation } from './scaffoldReviewAutomation.js';
 
 /**
@@ -142,7 +144,11 @@ packages:
   await write(path.join(root, 'AGENTS.md'), agentsDoc(config.framework));
   await write(path.join(root, 'CLAUDE.md'), '@AGENTS.md\n');
   // lockfile 은 패키지 매니저가 쓰는 파일이라 포맷 대상에서 뺀다. (install 할 때마다 다시 써짐)
-  await write(path.join(root, '.prettierignore'), 'pnpm-lock.yaml\n');
+  // openapi.snapshot.json 은 scripts/openapi.mjs save 가 쓰는 Swagger 사본이라 그대로 둔다.
+  await write(
+    path.join(root, '.prettierignore'),
+    `pnpm-lock.yaml\n${SNAPSHOT_IGNORE}\n`,
+  );
 
   await write(
     path.join(root, 'prettier.config.mjs'),

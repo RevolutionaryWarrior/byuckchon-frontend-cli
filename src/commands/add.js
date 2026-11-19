@@ -5,6 +5,7 @@ import chalk from 'chalk';
 
 import { askAddQuestions } from '../prompts/initPrompts.js';
 import { createApp } from '../generators/createApp.js';
+import { SNAPSHOT_IGNORE } from '../generators/createMonorepo.js';
 import { installMonorepoDeps } from '../generators/install.js';
 import { prepareVersionMatrix } from '../utils/latestSettings.js';
 import {
@@ -59,6 +60,7 @@ export async function addCommand() {
 
   await createApp({ appDir, config, scope });
   await addRootDevScript(root, answers.appName, appPkgName);
+  await ensurePrettierIgnore(root, SNAPSHOT_IGNORE);
   await installMonorepoDeps({ root, appPkgName, formatDir: `apps/${answers.appName}` });
 
   console.log(chalk.bold.green(`\n  ✓ ${appPkgName} 앱을 추가했습니다!\n`));
@@ -83,4 +85,20 @@ async function addRootDevScript(root, appName, appPkgName) {
     pkg.scripts[appName] = `pnpm --filter ${appPkgName} dev`;
     await fs.writeFile(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf8');
   }
+}
+
+/**
+ * 루트 .prettierignore 에 항목이 없으면 추가한다. (예전에 만든 모노레포 대응)
+ */
+async function ensurePrettierIgnore(root, entry) {
+  const file = path.join(root, '.prettierignore');
+  let current = '';
+  try {
+    current = await fs.readFile(file, 'utf8');
+  } catch {
+    /* 없으면 새로 만든다 */
+  }
+  if (current.split(/\r?\n/).includes(entry)) return;
+  const prefix = current && !current.endsWith('\n') ? '\n' : '';
+  await fs.writeFile(file, `${current}${prefix}${entry}\n`, 'utf8');
 }
