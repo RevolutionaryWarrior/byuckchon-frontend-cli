@@ -31,7 +31,7 @@ const EXPO_SDK = '58';
  *      app.json 은 템플릿 그대로 둔다. (번들 ID 는 팀이 정할 때 넣는다)
  *   4. 설치 → 포맷
  *
- * EAS(로그인 · eas init · eas.json)는 넣지 않는다. 필요해지면 그때 붙인다.
+ * EAS(로그인 · eas init · eas.json)는 넣지 않고, Expo AGENTS.md 의 EAS 안내도 지운다. 필요해지면 그때 붙인다.
  */
 export async function createExpoProject(config) {
   const rootDir = path.resolve(config.projectName);
@@ -197,11 +197,23 @@ async function appendGitignore(rootDir) {
   await fs.writeFile(file, `${current.trimEnd()}\n\n# env (byuckchon)\n.env\n`, 'utf8');
 }
 
-/** Expo 가 만든 AGENTS.md 는 그대로 두고, 아래에 팀 규칙을 붙인다. */
+/** Expo 가 만든 AGENTS.md 에서 EAS 안내만 빼고, 아래에 팀 규칙을 붙인다. */
 async function appendAgentsDoc(rootDir) {
   const file = path.join(rootDir, 'AGENTS.md');
   const current = await fs.readFile(file, 'utf8').catch(() => '');
-  await fs.writeFile(file, `${current.trimEnd()}\n\n${TEAM_AGENTS}`, 'utf8');
+  await fs.writeFile(file, `${stripEasNotes(current).trimEnd()}\n\n${TEAM_AGENTS}`, 'utf8');
+}
+
+/**
+ * EAS(클라우드 빌드 · 배포)는 쓰지 않으므로 Expo AGENTS.md 의 EAS 안내를 지운다.
+ * 문구가 SDK 마다 조금씩 바뀌어도 없는 부분은 그냥 건너뛴다.
+ */
+export function stripEasNotes(text) {
+  return text
+    .replace(/## Building with EAS\n[\s\S]*?(?=\n## |$)/, '')
+    .replace(/,? or `eas build[^`]*`/g, '')
+    .replace('Expo, EAS, or React Native', 'Expo or React Native')
+    .replace(/\n{3,}/g, '\n\n');
 }
 
 // ─── 템플릿 ────────────────────────────────────────────────────────────────────
@@ -292,7 +304,8 @@ const TEAM_AGENTS = `---
 
 # 팀 규칙 (byuckchon)
 
-위는 Expo 가 관리하는 내용이고, 아래는 우리 팀 규칙입니다.
+위는 Expo 가 관리하는 내용이고(EAS 안내는 뺐다), 아래는 우리 팀 규칙입니다.
+EAS(클라우드 빌드 · 배포)는 쓰지 않는다. 네이티브 빌드는 로컬에서 \`npx expo run:ios|android\` 로 한다.
 
 ## 1. 사내 패키지를 먼저 쓴다
 
