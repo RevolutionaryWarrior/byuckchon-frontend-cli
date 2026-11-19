@@ -19,6 +19,12 @@ const FRAMEWORK_CHOICES = [
   { name: 'Next.js  (App Router + TypeScript)', value: 'next' },
 ];
 
+// Expo 는 단일 프로젝트만 지원한다. 모노레포는 웹 앱(React 18)과 React 버전이 달라 따로 다룬다.
+const SINGLE_FRAMEWORK_CHOICES = [
+  ...FRAMEWORK_CHOICES,
+  { name: 'Expo  (React Native + TypeScript)', value: 'expo' },
+];
+
 // OpenAPI URL 은 묻지 않는다. 생성 단계에서는 거의 쓰지 않아서,
 // 필요하면 bc.config.json 의 api.openapi 에 직접 넣거나 bc adopt 로 채운다.
 
@@ -30,7 +36,7 @@ export async function askProjectType() {
       name: 'projectType',
       message: '무엇을 생성할까요?',
       choices: [
-        { name: '단일 프로젝트  (React 또는 Next 하나)', value: 'single' },
+        { name: '단일 프로젝트  (React · Next · Expo 중 하나)', value: 'single' },
         {
           name: '모노레포  (pnpm + Turborepo, 앱 하나로 시작 · 이후 bc add 로 추가)',
           value: 'monorepo',
@@ -111,10 +117,7 @@ export async function askInitQuestions() {
       type: 'list',
       name: 'framework',
       message: '어떤 프레임워크를 사용할까요?',
-      choices: [
-        { name: 'React  (Vite + TypeScript)', value: 'react' },
-        { name: 'Next.js  (App Router + TypeScript)', value: 'next' },
-      ],
+      choices: SINGLE_FRAMEWORK_CHOICES,
     },
   ]);
 }

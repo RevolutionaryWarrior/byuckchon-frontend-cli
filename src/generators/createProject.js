@@ -5,6 +5,7 @@ import { promisify } from "util";
 
 import { createBaseFiles } from "./createBaseFiles.js";
 import { createBcConfig } from "./createBcConfig.js";
+import { createExpoProject } from "./createExpoProject.js";
 import { createFolders } from "./createFolders.js";
 import { createPackageJson } from "./createPackageJson.js";
 import { createReadme } from "./createReadme.js";
@@ -15,6 +16,9 @@ import { BYUCKCHON_PACKAGES, formatGeneratedFiles } from "./install.js";
 const exec = promisify(execCallback);
 
 export async function createProject(config) {
+  // Expo 는 create-expo-app 위에 얹는 방식이라 따로 만든다.
+  if (config.framework === "expo") return createExpoProject(config);
+
   const rootDir = path.resolve(config.projectName);
 
   await fs.mkdir(rootDir);
