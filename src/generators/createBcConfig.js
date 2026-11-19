@@ -17,19 +17,20 @@ export async function createBcConfig(rootDir, config) {
       baseUrl: null,
     },
     framework: config.framework,
-    // init 단계에선 사용자가 React/Next 중 골랐고 TS/Tailwind 가 항상 들어가니
+    // init 단계에선 프레임워크를 사용자가 골랐고 TS 가 항상 들어가니
     // 감지 결과를 미리 채워둔다 (bc adopt 의 detected 와 같은 모양).
     detected: {
       language: 'ts',
       styling: {
-        tailwind: true,
+        // Expo(RN) 는 Tailwind 를 쓰지 않는다. (StyleSheet)
+        tailwind: config.framework !== 'expo',
         cssModules: false,
         styledComponents: false,
         emotion: false,
         vanillaExtract: false,
       },
       packageManager: 'npm',
-      routing: config.framework === 'next' ? 'app-router' : null,
+      routing: { next: 'app-router', expo: 'expo-router' }[config.framework] ?? null,
       componentDirs: ['src/components'],
       designTokensFiles: [],
       hasStorybook: false,

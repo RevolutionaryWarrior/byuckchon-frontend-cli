@@ -44,7 +44,7 @@ const NEXT_FOLDERS = [
  * React Query 캐시 정책. api-codegen.md 가 `import { cacheConfig } from '@/lib'` 로 쓴다.
  * React · Next 공통. (Next 서버 컴포넌트에서도 import 가능 — React 의존성이 없는 순수 객체)
  */
-const CACHE_CONFIG_TS = `/**
+export const CACHE_CONFIG_TS = `/**
  * React Query 캐시 정책. 조회 훅에서 \`...cacheConfig.<tier>\` 로 펼쳐 씁니다.
  *
  *   useQuery({ queryKey, queryFn, ...cacheConfig.longLived });

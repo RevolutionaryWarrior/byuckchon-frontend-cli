@@ -116,11 +116,21 @@ bc
 
 | 형태 | 생성 결과 | 적합한 경우 |
 | --- | --- | --- |
-| 단일 프로젝트 | React(Vite) 또는 Next.js(App Router)  | 하나의 웹 서비스를 빠르게 시작할 때 |
+| 단일 프로젝트 | React(Vite) · Next.js(App Router) · Expo 중 하나 | 하나의 서비스를 빠르게 시작할 때 |
 | 모노레포 | pnpm + Turborepo 루트, `apps/`, `packages/` | 여러 웹 앱과 공용 패키지를 함께 관리할 때 |
 
 생성 프로젝트에는 TypeScript, ESLint, Prettier, Tailwind, `bc.config.json`, API 코드 가이드가
 기본으로 포함됩니다.
+
+**Expo**(React Native)는 공식 `create-expo-app` 템플릿 위에 팀 규칙을 얹습니다. (단일 프로젝트만)
+
+- 앱 뼈대 · Expo 패키지 버전 · `app.json` · `AGENTS.md`(Expo 관리, EAS 안내만 뺌)는 템플릿 그대로, SDK 는 CLI 가 고정합니다.
+- 데모 화면은 지우고 `src/` 를 팀 구조(`app` · `api` · `components` · `hooks` · `lib` · `store` · `constants`)로 만듭니다.
+- React Query · axios(`EXPO_PUBLIC_API_BASE_URL`) · zustand · zod, 팀 ESLint · Prettier · tsconfig,
+  `AGENTS.md` 아래에 팀 규칙(사내 패키지 · 폴더 · API · 스타일)을 붙입니다.
+- 스타일은 `StyleSheet` 입니다. Tailwind 는 넣지 않습니다.
+- EAS(클라우드 빌드 · 배포)와는 연결하지 않습니다. eas-cli · `eas.json` · 로그인 · projectId 모두 없습니다.
+- `build` 는 `expo export` 로 JS 번들이 만들어지는지만 봅니다. (PR Check 용)
 
 ```bash
 bc init

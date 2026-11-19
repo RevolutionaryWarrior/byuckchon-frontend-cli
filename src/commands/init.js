@@ -60,7 +60,9 @@ async function runSingleInit() {
   );
   console.log(chalk.yellow("  다음 명령어로 시작하세요:\n"));
   console.log(chalk.white(`    cd ${answers.projectName}`));
-  console.log(chalk.white("    npm run dev\n"));
+  console.log(
+    chalk.white(answers.framework === "expo" ? "    npm start\n" : "    npm run dev\n")
+  );
 
 }
 
