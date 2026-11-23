@@ -9,3 +9,4 @@
 - 모노레포 앱은 `apps/<앱>` · `packages` 를 건드린 커밋만 노트에 넣습니다.
 - 모노레포 루트에서 실행하면 앱을 고르고, "레포 전체 하나로"는 한 번 더 확인합니다. `--yes` 면 `--app` 이 필요합니다.
 - 설정은 그 앱의 `bc.config.json` 의 `release` 에 저장합니다.
+- 노트는 함께 복사하는 `.github/scripts/release-notes.mjs`(의존성 없음)가 만듭니다. settings 배포 없이 바로 동작합니다.
