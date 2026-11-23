@@ -46,10 +46,11 @@ program
 
 program
   .command('deploy')
-  .description('운영 배포 workflow + 배포 성공 시 릴리즈 노트 (프로토타입)')
-  .option('-y, --yes', '묻지 않고 기본값 사용 (날짜 버전 · GitHub Release · Slack 없음)')
-  .option('-f, --force', '기존 deploy.yml 이 있어도 덮어쓰기')
-  .option('--prefix <prefix>', '태그 접두사 (기본: 패키지 이름 + @)')
+  .description('릴리즈 노트 workflow 생성 — Actions 에서 실행하면 버전을 올리고 GitHub Release 작성 (프로토타입)')
+  .option('-y, --yes', '묻지 않고 기본값 사용 (모노레포 루트에서는 --app 필요)')
+  .option('-f, --force', '기존 release workflow 가 있어도 묻지 않고 다시 만들기')
+  .option('--app <name>', '모노레포 루트에서 릴리즈할 앱 (apps/<name>)')
+  .option('--prefix <prefix>', '태그 접두사 (기본: 단일 v, 모노레포 앱 <앱>@v)')
   .action(async (opts) => {
     await deployCommand(opts);
   });

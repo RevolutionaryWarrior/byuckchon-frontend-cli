@@ -1,0 +1,56 @@
+# 릴리즈 노트 (bc deploy 로 생성 · 프로토타입)
+#
+# GitHub → Actions → "__WORKFLOW_NAME__" → Run workflow 로 실행합니다.
+# 이전 릴리즈 태그(__TAG_PREFIX__X.Y.Z) 이후 커밋으로 버전을 올리고 GitHub Release 를 만듭니다.
+#   feat → minor (2.6.0 → 2.7.0) · 그 외 → patch (2.6.1) · feat! / BREAKING CHANGE → major (3.0.0)
+#
+# 복사된 파일이므로 프로젝트 소유입니다. 자유롭게 수정하세요.
+
+name: __WORKFLOW_NAME__
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '버전 (비우면 커밋으로 자동 계산 · 직접: 2.7.0 / major / minor / patch)'
+        required: false
+        default: ''
+
+# 같은 릴리즈가 겹치면 앞의 것을 끝까지 마치고 다음 것을 실행합니다.
+concurrency:
+  group: __WORKFLOW_ID__
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: 릴리즈 노트
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 이전 태그 이후 커밋을 읽어야 합니다.
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      # 전체 의존성 설치 없이 settings 패키지만 받아 실행합니다. (package.json 의 버전 범위를 따름)
+      - name: 버전 · 노트 만들기
+        id: notes
+        env:
+          VERSION_INPUT: ${{ inputs.version }}
+        run: |
+          SETTINGS=$(node -p "const v=(f)=>{try{const p=require(f);return p.devDependencies?.['@byuckchon-frontend/settings']??p.dependencies?.['@byuckchon-frontend/settings']}catch{}};v('./__APP_DIR__/package.json')??v('./package.json')??'latest'")
+          npx --yes --package "@byuckchon-frontend/settings@${SETTINGS}" byuckchon-release-notes \
+            --prefix "__TAG_PREFIX__" --name "__RELEASE_NAME__" --bump "$VERSION_INPUT"__PATH_ARGS__
+
+      # 실행한 커밋에 태그를 붙이고 Release 를 만듭니다.
+      - name: GitHub Release 만들기
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.notes.outputs.tag }}
+          TITLE: ${{ steps.notes.outputs.title }}
+        run: gh release create "$TAG" --target "$GITHUB_SHA" --title "$TITLE" --notes-file notes.md --latest=__LATEST__
