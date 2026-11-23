@@ -2,10 +2,9 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const TEMPLATE = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  '../../templates/release/github/workflows/release.yml',
-);
+const TEMPLATE_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../templates/release/github');
+const TEMPLATE = path.join(TEMPLATE_DIR, 'workflows/release.yml');
+const SCRIPT = path.join(TEMPLATE_DIR, 'scripts/release-notes.mjs');
 
 /**
  * @typedef {object} ReleaseTarget
@@ -38,7 +37,6 @@ export async function renderReleaseWorkflow({ target, release }) {
       .replaceAll('__WORKFLOW_ID__', id)
       .replaceAll('__TAG_PREFIX__', release.tagPrefix)
       .replaceAll('__RELEASE_NAME__', release.name)
-      .replaceAll('__APP_DIR__', target.appDir)
       .replaceAll('__PATH_ARGS__', pathArgs)
       .replaceAll('__LATEST__', String(release.latest))
       .trimEnd() + '\n'
@@ -46,14 +44,19 @@ export async function renderReleaseWorkflow({ target, release }) {
 }
 
 /**
- * `.github/workflows/<file>` 을 쓴다. 이미 있으면 덮어쓴다. (덮어쓸지는 bc deploy 가 먼저 묻는다)
- * @returns {Promise<{ file: string }>}
+ * `.github/workflows/<file>` 과 노트 스크립트 `.github/scripts/release-notes.mjs` 를 쓴다.
+ * workflow 는 덮어쓸지 bc deploy 가 먼저 묻는다. 스크립트는 저장소에 하나라 항상 최신으로 덮어쓴다.
+ * @returns {Promise<{ file: string, script: string }>}
  */
 export async function scaffoldReleaseWorkflow({ repoRoot, target, release }) {
   const file = path.join(repoRoot, '.github', 'workflows', target.workflowFile);
+  const script = path.join(repoRoot, '.github', 'scripts', 'release-notes.mjs');
+
   await fs.mkdir(path.dirname(file), { recursive: true });
   await fs.writeFile(file, await renderReleaseWorkflow({ target, release }), 'utf8');
-  return { file };
+  await fs.mkdir(path.dirname(script), { recursive: true });
+  await fs.copyFile(SCRIPT, script);
+  return { file, script };
 }
 
 /** 저장소에 이미 있는 release workflow 파일 이름들 */

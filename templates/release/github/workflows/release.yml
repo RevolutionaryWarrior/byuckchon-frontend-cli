@@ -37,15 +37,14 @@ jobs:
         with:
           node-version-file: .nvmrc
 
-      # 전체 의존성 설치 없이 settings 패키지만 받아 실행합니다. (package.json 의 버전 범위를 따름)
+      # 의존성 설치 없이 bc deploy 가 복사한 스크립트로 버전 · notes.md 를 만듭니다.
       - name: 버전 · 노트 만들기
         id: notes
         env:
           VERSION_INPUT: ${{ inputs.version }}
-        run: |
-          SETTINGS=$(node -p "const v=(f)=>{try{const p=require(f);return p.devDependencies?.['@byuckchon-frontend/settings']??p.dependencies?.['@byuckchon-frontend/settings']}catch{}};v('./__APP_DIR__/package.json')??v('./package.json')??'latest'")
-          npx --yes --package "@byuckchon-frontend/settings@${SETTINGS}" byuckchon-release-notes \
-            --prefix "__TAG_PREFIX__" --name "__RELEASE_NAME__" --bump "$VERSION_INPUT"__PATH_ARGS__
+        run: >-
+          node .github/scripts/release-notes.mjs
+          --prefix "__TAG_PREFIX__" --name "__RELEASE_NAME__" --bump "$VERSION_INPUT"__PATH_ARGS__
 
       # 실행한 커밋에 태그를 붙이고 Release 를 만듭니다.
       - name: GitHub Release 만들기

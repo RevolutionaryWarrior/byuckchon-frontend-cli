@@ -1,6 +1,5 @@
 import { exec as execCallback } from 'node:child_process';
 import fs from 'node:fs/promises';
-import { createRequire } from 'node:module';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
@@ -164,18 +163,6 @@ async function formatWithProjectPrettier(cwd, files) {
   }
 }
 
-/** 설치된 settings 가 workflow 가 부르는 byuckchon-release-notes 를 갖고 있는지 */
-async function releaseNotesBinStatus(dir) {
-  try {
-    const require = createRequire(path.join(dir, 'package.json'));
-    const file = require.resolve('@byuckchon-frontend/settings/package.json');
-    const pkg = JSON.parse(await fs.readFile(file, 'utf8'));
-    return { installed: true, version: pkg.version, hasBin: Boolean(pkg.bin?.['byuckchon-release-notes']) };
-  } catch {
-    return { installed: false };
-  }
-}
-
 /**
  * `bc deploy` (프로토타입)
  *
@@ -249,27 +236,14 @@ export async function deployCommand(opts = {}) {
   console.log(chalk.green(`  ✓ ${path.relative(repoRoot, configFile)} 의 release 저장`));
 
   await ensureNvmrc(repoRoot);
-  const { file } = await scaffoldReleaseWorkflow({ repoRoot, target, release });
-  await formatWithProjectPrettier(repoRoot, [configFile, file]);
+  const { file, script } = await scaffoldReleaseWorkflow({ repoRoot, target, release });
+  await formatWithProjectPrettier(repoRoot, [configFile, file, script]);
 
   console.log(chalk.green(`  ✓ release workflow 생성: ${path.relative(repoRoot, file)}`));
+  console.log(chalk.green(`  ✓ 노트 스크립트: ${path.relative(repoRoot, script)}`));
   console.log(chalk.dim(`    태그 ${release.tagPrefix}X.Y.Z · 제목 "${release.name} vX.Y.Z"`));
   if (target.paths.length) {
     console.log(chalk.dim(`    노트에 넣는 커밋: ${target.paths.join(', ')} 를 건드린 것`));
-  }
-
-  const bin = await releaseNotesBinStatus(appRoot);
-  if (!bin.installed) {
-    console.log(
-      chalk.yellow('  ⚠ @byuckchon-frontend/settings 가 설치돼 있지 않습니다. devDependencies 에 추가해주세요.'),
-    );
-  } else if (!bin.hasBin) {
-    console.log(
-      chalk.yellow(
-        `  ⚠ 설치된 settings(${bin.version})에는 byuckchon-release-notes 가 아직 없습니다.\n` +
-          '    이 명령이 들어간 settings 가 배포되기 전까지 release workflow 는 실패합니다.',
-      ),
-    );
   }
 
   console.log();
