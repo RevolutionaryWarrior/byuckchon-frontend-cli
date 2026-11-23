@@ -230,35 +230,30 @@ PR이 `dev` 브랜치를 대상으로 할 때, workflow가 기계적으로 판�
 모노레포에서는 workflow와 `tools/`가 루트에 한 번만 존재하며, PR에서 변경된 TypeScript 파일을
 대상으로 검사합니다.
 
-### 운영 배포 + 릴리즈 노트: `bc deploy` (프로토타입)
+### 릴리즈 노트: `bc deploy` (프로토타입)
 
-배포가 **성공했을 때만** 태그와 GitHub Release 를 남깁니다. 실패한 배포는 기록되지 않으므로
-최신 Release 가 곧 지금 운영에 떠 있는 버전입니다.
+GitHub Release 를 만드는 workflow 를 생성합니다. 배포는 하지 않습니다.
+GitHub → Actions → **Release** → Run workflow 를 누르면, 이전 릴리즈 태그 이후 커밋으로 버전을 올리고
+✨ 기능 / 🐛 수정 노트를 붙여 Release 를 만듭니다.
 
 ```bash
-bc deploy        # 질문 4개 — Enter 만 눌러도 기본값
-bc deploy --yes  # 묻지 않고 기본값 (날짜 버전 · GitHub Release · Slack 없음)
+bc deploy                    # 단일 레포 루트, 또는 모노레포 앱 폴더(apps/web)에서
+bc deploy                    # 모노레포 루트 → 어느 앱인지 고름
+bc deploy --yes --app web    # 모노레포 루트에서 묻지 않고
 ```
 
-| 질문 | 기본값 |
-| --- | --- |
-| 릴리즈 노트 단계를 남길까요? | Yes |
-| 버전 이름 | 날짜 (`web@2026.11.05`, 같은 날 재배포는 `.2`) — SemVer 는 준비 중 |
-| 남길 곳 | GitHub Release (CHANGELOG.md 는 사용 안 함) |
-| Slack 웹훅 | 선택 — GitHub Secret **이름**만 저장, URL 은 저장하지 않음 |
+| 실행 위치 | 태그 · 제목 | 설정 | workflow |
+| --- | --- | --- | --- |
+| 단일 레포 | `v1.2.0` · `Release v1.2.0` | `bc.config.json` | `release.yml` |
+| 모노레포 앱 (`apps/web`) | `web@v1.2.0` · `web v1.2.0` | `apps/web/bc.config.json` | `release-web.yml` |
+| 모노레포 루트 → 레포 전체 | `v1.2.0` · `Release v1.2.0` | `bc.config.json` | `release.yml` |
 
-- `bc.config.json` 에 `"release": { "version": "date", "tagPrefix": "web@", ... }` 를 저장합니다.
-  태그 접두사는 패키지 이름에서 정하며 `--prefix` 로 바꿀 수 있습니다.
-- `.github/workflows/deploy.yml` 을 만듭니다. `deploy` job 의 배포 단계는 아직 비어 있으니
-  (`TODO: S3 · Lightsail`) 프로젝트에 맞게 채워주세요.
-- `release` job 은 `needs: deploy` 로 묶여 있고 `byuckchon-release-notes`(settings)로
-  커밋을 ✨ 기능 / 🐛 수정 으로 묶어 Release 노트를 만듭니다.
-
-다음 단계 (아직 범위 밖)
-
-- **Amplify** — 배포가 GitHub Actions 밖에서 일어나므로, 배포 성공 신호를 받아 release 를 실행할 방법이 필요합니다.
-- **모노레포 앱별 태그** — `web@` · `admin@` 를 앱마다 따로 남기고 경로별로 커밋을 나누는 일.
-- **스테이징 pre-release** — 스테이징 배포는 pre-release 로 남기는 흐름.
+- 버전은 커밋으로 자동 계산합니다. `feat` → minor, 그 외 → patch, `feat!` · `BREAKING CHANGE` → major.
+  Run workflow 에서 `2.7.0` · `major` 처럼 직접 넣을 수도 있습니다. 첫 릴리즈는 `1.0.0` 입니다.
+- 모노레포 앱은 `apps/<앱>` · `packages` 를 건드린 커밋만 노트에 넣습니다. 앱마다 버전이 따로 올라갑니다.
+- 모노레포 루트에서 실행하면 앱을 고릅니다. "레포 전체 하나로"는 모든 앱이 같은 버전이 되므로 한 번 더 확인합니다.
+- 질문은 릴리즈 이름(제목), 그리고 모노레포 앱이면 GitHub 의 Latest 표시를 붙일지입니다. 대표 앱 하나에만 붙이는 것을 권장합니다.
+- 노트는 settings 의 `byuckchon-release-notes` 가 만듭니다. 전체 의존성 설치 없이 이 패키지만 받아 실행합니다.
 
 ## 제한 사항
 
