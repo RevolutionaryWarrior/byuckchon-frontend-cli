@@ -46,7 +46,7 @@ program
 
 program
   .command('deploy')
-  .description('릴리즈 노트 workflow 생성 — Actions 에서 실행하면 버전을 올리고 GitHub Release 작성 (프로토타입)')
+  .description('변경 기록 · 릴리즈 workflow 생성 — 머지된 PR 을 CHANGELOG 에 쌓고, 입력한 버전으로 GitHub Release 작성 (프로토타입)')
   .option('-y, --yes', '묻지 않고 기본값 사용 (모노레포 루트에서는 --app 필요)')
   .option('-f, --force', '기존 release workflow 가 있어도 묻지 않고 다시 만들기')
   .option('--app <name>', '모노레포 루트에서 릴리즈할 앱 (apps/<name>)')

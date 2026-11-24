@@ -230,11 +230,12 @@ PR이 `dev` 브랜치를 대상으로 할 때, workflow가 기계적으로 판�
 모노레포에서는 workflow와 `tools/`가 루트에 한 번만 존재하며, PR에서 변경된 TypeScript 파일을
 대상으로 검사합니다.
 
-### 릴리즈 노트: `bc deploy` (프로토타입)
+### 변경 기록 · 릴리즈: `bc deploy` (프로토타입)
 
-GitHub Release 를 만드는 workflow 를 생성합니다. 배포는 하지 않습니다.
-GitHub → Actions → **Release** → Run workflow 를 누르면, 이전 릴리즈 태그 이후 커밋으로 버전을 올리고
-✨ 기능 / 🐛 수정 노트를 붙여 Release 를 만듭니다.
+머지된 PR 을 `CHANGELOG.md` 에 쌓고, 버전을 정해 GitHub Release 를 만드는 workflow 를 생성합니다. 배포는 하지 않습니다.
+
+1. PR 이 main 에 머지될 때마다 `CHANGELOG.md` 의 **다음 릴리즈** 에 PR 제목이 한 줄씩 들어갑니다.
+2. GitHub → Actions → **Release** → Run workflow 에 버전(예: `1.2.0`)을 넣으면, 쌓인 내용을 그 버전으로 묶어 커밋하고 Release 를 만듭니다.
 
 ```bash
 bc deploy                    # 단일 레포 루트, 또는 모노레포 앱 폴더(apps/web)에서
@@ -242,18 +243,33 @@ bc deploy                    # 모노레포 루트 → 어느 앱인지 고름
 bc deploy --yes --app web    # 모노레포 루트에서 묻지 않고
 ```
 
-| 실행 위치 | 태그 · 제목 | 설정 | workflow |
-| --- | --- | --- | --- |
-| 단일 레포 | `v1.2.0` · `Release v1.2.0` | `bc.config.json` | `release.yml` |
-| 모노레포 앱 (`apps/web`) | `web@v1.2.0` · `web v1.2.0` | `apps/web/bc.config.json` | `release-web.yml` |
-| 모노레포 루트 → 레포 전체 | `v1.2.0` · `Release v1.2.0` | `bc.config.json` | `release.yml` |
+| 실행 위치 | CHANGELOG | 태그 · 제목 | 설정 | workflow |
+| --- | --- | --- | --- | --- |
+| 단일 레포 | `CHANGELOG.md` | `v1.2.0` · `Release v1.2.0` | `bc.config.json` | `release.yml` |
+| 모노레포 앱 (`apps/web`) | `apps/web/CHANGELOG.md` | `web@v1.2.0` · `web v1.2.0` | `apps/web/bc.config.json` | `release-web.yml` |
+| 모노레포 루트 → 레포 전체 | `CHANGELOG.md` | `v1.2.0` · `Release v1.2.0` | `bc.config.json` | `release.yml` |
 
-- 버전은 커밋으로 자동 계산합니다. `feat` → minor, 그 외 → patch, `feat!` · `BREAKING CHANGE` → major.
-  Run workflow 에서 `2.7.0` · `major` 처럼 직접 넣을 수도 있습니다. 첫 릴리즈는 `1.0.0` 입니다.
-- 모노레포 앱은 `apps/<앱>` · `packages` 를 건드린 커밋만 노트에 넣습니다. 앱마다 버전이 따로 올라갑니다.
+```md
+## 다음 릴리즈
+
+### ✨ 기능
+- 장바구니 수량 변경 ([#12](https://github.com/…/pull/12))
+
+### 🐛 수정
+- 결제 금액 소수점 오류 ([#13](https://github.com/…/pull/13))
+```
+
+- 기록 단위는 커밋이 아니라 PR 제목입니다. 분류는 PR 라벨(`features` · `fix` · `hotfix` …) → 제목의 `[feature]` · `[fix]` →
+  브랜치 첫 토막(`feature/…`) 순서로 정하고, 못 정하면 🔧 기타에 넣습니다. 제목 앞의 `[feature]` 는 섹션과 겹쳐서 뺍니다.
+- 버전은 사람이 정합니다. 이전 릴리즈보다 커야 하고, 지난 릴리즈 이후 기록이 없으면 실패합니다.
+- 첫 릴리즈는 `bc deploy` 이후 머지된 PR 만 담습니다. 기록이 없어도 만들 수 있어서, 이미 운영 중인 프로젝트는 지금 버전을 기준점으로 삼으면 됩니다.
+- "다음 릴리즈" 의 줄은 사람이 고쳐도 됩니다. 다음 기록 · 릴리즈 때 그대로 유지됩니다.
+- 모노레포 앱은 `apps/<앱>` · `packages` 를 건드린 PR 만 기록합니다. 앱마다 버전이 따로 올라갑니다.
 - 모노레포 루트에서 실행하면 앱을 고릅니다. "레포 전체 하나로"는 모든 앱이 같은 버전이 되므로 한 번 더 확인합니다.
 - 질문은 릴리즈 이름(제목), 그리고 모노레포 앱이면 GitHub 의 Latest 표시를 붙일지입니다. 대표 앱 하나에만 붙이는 것을 권장합니다.
-- 노트는 `.github/scripts/release-notes.mjs`(의존성 없음)가 만듭니다. 저장소에 하나이며 `bc deploy` 를 다시 실행하면 최신으로 덮어씁니다.
+- 기록 · 릴리즈 모두 github-actions 가 main 에 직접 커밋합니다(`[skip ci]`). main 에 보호 규칙(PR 필수 · 리뷰 필수)이 있으면
+  GitHub Actions 가 push 할 수 있게 예외를 주세요. PR 을 main 이 아닌 브랜치에 머지한다면 workflow 의 `branches` 를 바꾸세요.
+- 스크립트는 `.github/scripts/changelog.mjs`(의존성 없음) 하나이며, `bc deploy` 를 다시 실행하면 최신으로 덮어씁니다.
 
 ## 제한 사항
 

@@ -11,6 +11,7 @@ import { detectProjectContext } from '../context/detect.js';
 import { detectMonorepoRoot } from '../context/monorepo.js';
 import { ensureNvmrc } from '../generators/ensureNvmrc.js';
 import {
+  changelogFile,
   existingReleaseWorkflows,
   releaseWorkflowFile,
   scaffoldReleaseWorkflow,
@@ -56,14 +57,16 @@ async function listApps(repoRoot) {
 
 /** @returns {Promise<import('../generators/scaffoldReleaseWorkflow.js').ReleaseTarget>} */
 async function appTarget(repoRoot, app) {
-  const paths = [`apps/${app}`];
-  // 공통 패키지를 고친 커밋은 그 패키지를 쓰는 앱 노트에 모두 들어간다.
+  const appDir = `apps/${app}`;
+  const paths = [appDir];
+  // 공통 패키지를 고친 PR 은 그 패키지를 쓰는 앱 CHANGELOG 에 모두 들어간다.
   if (await exists(path.join(repoRoot, 'packages'))) paths.push('packages');
-  return { mode: 'app', app, appDir: `apps/${app}`, paths, workflowFile: releaseWorkflowFile(app) };
+  return { mode: 'app', app, appDir, paths, changelog: changelogFile(appDir), workflowFile: releaseWorkflowFile(app) };
 }
 
-const SINGLE_TARGET = { mode: 'single', app: null, appDir: '.', paths: [], workflowFile: 'release.yml' };
-const REPO_TARGET = { mode: 'repo', app: null, appDir: '.', paths: [], workflowFile: 'release.yml' };
+const WHOLE_REPO = { app: null, appDir: '.', paths: [], changelog: changelogFile('.'), workflowFile: 'release.yml' };
+const SINGLE_TARGET = { mode: 'single', ...WHOLE_REPO };
+const REPO_TARGET = { mode: 'repo', ...WHOLE_REPO };
 
 /** 모노레포 루트에서 "레포 전체 하나로"를 골랐을 때 한 번 더 확인한다. */
 async function confirmRepoWide(existing) {
@@ -71,7 +74,7 @@ async function confirmRepoWide(existing) {
   const appWorkflows = existing.filter((name) => name !== 'release.yml');
   if (appWorkflows.length) {
     console.log(
-      chalk.yellow(`  ⚠ 이미 앱별 릴리즈(${appWorkflows.join(', ')})가 있어 같은 커밋이 노트에 중복으로 들어갑니다.`),
+      chalk.yellow(`  ⚠ 이미 앱별 릴리즈(${appWorkflows.join(', ')})가 있어 같은 PR 이 CHANGELOG 여러 곳에 기록됩니다.`),
     );
   }
   const { ok } = await inquirer.prompt([
@@ -166,17 +169,18 @@ async function formatWithProjectPrettier(cwd, files) {
 /**
  * `bc deploy` (프로토타입)
  *
- * 릴리즈 노트 workflow 를 만든다. 배포는 하지 않는다.
- * GitHub Actions 에서 Run workflow 를 누르면 이전 태그 이후 커밋으로 버전을 올리고 Release 를 만든다.
+ * 변경 기록 · 릴리즈 workflow 를 만든다. 배포는 하지 않는다.
+ * - PR 이 main 에 머지될 때마다 CHANGELOG.md 의 "다음 릴리즈" 에 PR 제목을 쌓는다.
+ * - Actions 에서 Run workflow 에 버전을 넣으면 쌓인 내용을 그 버전으로 묶고 GitHub Release 를 만든다.
  *
- *   단일 레포         bc.config.json          .github/workflows/release.yml       태그 v1.2.0
- *   모노레포 앱       apps/web/bc.config.json .github/workflows/release-web.yml   태그 web@v1.2.0
- *   모노레포 전체     bc.config.json          .github/workflows/release.yml       태그 v1.2.0
+ *   단일 레포         bc.config.json          CHANGELOG.md           release.yml       태그 v1.2.0
+ *   모노레포 앱       apps/web/bc.config.json apps/web/CHANGELOG.md  release-web.yml   태그 web@v1.2.0
+ *   모노레포 전체     bc.config.json          CHANGELOG.md           release.yml       태그 v1.2.0
  */
 export async function deployCommand(opts = {}) {
   const cwd = process.cwd();
 
-  console.log(chalk.bold.cyan('\n  bc deploy — 릴리즈 노트 workflow (프로토타입)\n'));
+  console.log(chalk.bold.cyan('\n  bc deploy — 변경 기록 · 릴리즈 workflow (프로토타입)\n'));
 
   const ctx = await detectProjectContext(cwd);
   if (!ctx.isProject) fail('package.json 을 찾지 못했습니다. 프로젝트 루트에서 실행해주세요.');
@@ -191,7 +195,7 @@ export async function deployCommand(opts = {}) {
 
   if (target.mode === 'app' && existing.includes('release.yml')) {
     console.log(
-      chalk.yellow('  ⚠ 레포 전체 릴리즈(release.yml)가 이미 있어 같은 커밋이 노트에 중복으로 들어갑니다.'),
+      chalk.yellow('  ⚠ 레포 전체 릴리즈(release.yml)가 이미 있어 같은 PR 이 CHANGELOG 여러 곳에 기록됩니다.'),
     );
   }
 
@@ -240,15 +244,19 @@ export async function deployCommand(opts = {}) {
   await formatWithProjectPrettier(repoRoot, [configFile, file, script]);
 
   console.log(chalk.green(`  ✓ release workflow 생성: ${path.relative(repoRoot, file)}`));
-  console.log(chalk.green(`  ✓ 노트 스크립트: ${path.relative(repoRoot, script)}`));
-  console.log(chalk.dim(`    태그 ${release.tagPrefix}X.Y.Z · 제목 "${release.name} vX.Y.Z"`));
+  console.log(chalk.green(`  ✓ 기록 스크립트: ${path.relative(repoRoot, script)}`));
+  console.log(chalk.dim(`    CHANGELOG ${target.changelog} · 태그 ${release.tagPrefix}X.Y.Z · 제목 "${release.name} vX.Y.Z"`));
   if (target.paths.length) {
-    console.log(chalk.dim(`    노트에 넣는 커밋: ${target.paths.join(', ')} 를 건드린 것`));
+    console.log(chalk.dim(`    기록하는 PR: ${target.paths.join(', ')} 를 건드린 것`));
   }
 
   console.log();
   console.log(chalk.dim('  다음:'));
-  console.log(chalk.dim(`    GitHub → Actions → "${target.app ? `Release ${target.app}` : 'Release'}" → Run workflow`));
-  console.log(chalk.dim('    첫 릴리즈는 1.0.0 입니다. 다른 버전으로 시작하려면 Run workflow 에서 버전을 입력하세요.'));
+  console.log(chalk.dim(`    1. 커밋해서 main 에 올리면, 이후 main 에 머지되는 PR 이 ${target.changelog} 에 쌓입니다.`));
+  console.log(
+    chalk.dim(`    2. 릴리즈: GitHub → Actions → "${target.app ? `Release ${target.app}` : 'Release'}" → Run workflow 에 버전 입력`),
+  );
+  console.log(chalk.dim('       첫 릴리즈는 기록이 없어도 만들 수 있어서, 지금 버전을 기준점으로 삼으면 됩니다.'));
+  console.log(chalk.dim('    main 에 보호 규칙이 있으면 GitHub Actions 가 push 할 수 있게 예외를 주세요.'));
   console.log();
 }
