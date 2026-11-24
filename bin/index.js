@@ -8,6 +8,7 @@ import { initCommand } from '../src/commands/init.js';
 import { addCommand } from '../src/commands/add.js';
 import { adoptCommand } from '../src/commands/adopt.js';
 import { genApiTypesCommand } from '../src/commands/genCmd.js';
+import { deployCommand } from '../src/commands/deploy.js';
 
 // 버전은 package.json 에서 읽는다. 여기에 직접 적으면 changesets 가 올린 버전과
 // 어긋나서, 실제로는 최신인데 옛 버전이라고 표시되는 일이 생긴다.
@@ -41,6 +42,17 @@ program
   .option('-f, --force', '기존 bc.config.json 이 있어도 묻지 않고 덮어쓰기')
   .action(async (opts) => {
     await adoptCommand(opts);
+  });
+
+program
+  .command('deploy')
+  .description('변경 기록 · 릴리즈 workflow 생성 — 머지된 PR 을 CHANGELOG 에 쌓고, 입력한 버전으로 GitHub Release 작성 (프로토타입)')
+  .option('-y, --yes', '묻지 않고 기본값 사용 (모노레포 루트에서는 --app 필요)')
+  .option('-f, --force', '기존 release workflow 가 있어도 묻지 않고 다시 만들기')
+  .option('--app <name>', '모노레포 루트에서 릴리즈할 앱 (apps/<name>)')
+  .option('--prefix <prefix>', '태그 접두사 (기본: 단일 v, 모노레포 앱 <앱>@v)')
+  .action(async (opts) => {
+    await deployCommand(opts);
   });
 
 const gen = program
